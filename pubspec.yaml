@@ -63,6 +63,8 @@ flutter:
   assets:
     - assets/fair_map.png
     - assets/map/index.html
+    - assets/map/map_filter.js
+    - assets/attractions/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
