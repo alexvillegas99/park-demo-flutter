@@ -1,10 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:park_demo/account/account_session.dart';
 import 'package:park_demo/main.dart';
+
+Widget _testRootShell() {
+  return MaterialApp(
+    home: RootShell(
+      session: const AccessSession(
+        displayName: 'Familia',
+        email: 'familia@example.com',
+        provider: AccessProvider.local,
+      ),
+      onSignOut: () {},
+      onDeleteLocalAccount: () {},
+      mapScreenBuilder: (_) => const SizedBox(key: Key('test-map')),
+    ),
+  );
+}
 
 void main() {
   testWidgets('Paquetes presenta la oferta aprobada', (tester) async {
-    await tester.pumpWidget(const MushucRunaApp());
+    await tester.pumpWidget(_testRootShell());
 
     await tester.tap(find.text('Paquetes'));
     await tester.pumpAndSettle();
@@ -15,7 +31,7 @@ void main() {
   });
 
   testWidgets('Comida presenta sabores, espera y pedido', (tester) async {
-    await tester.pumpWidget(const MushucRunaApp());
+    await tester.pumpWidget(_testRootShell());
 
     await tester.tap(find.text('Comida'));
     await tester.pumpAndSettle();
@@ -26,7 +42,7 @@ void main() {
   });
 
   testWidgets('el botón central abre Runi', (tester) async {
-    await tester.pumpWidget(const MushucRunaApp());
+    await tester.pumpWidget(_testRootShell());
 
     await tester.tap(find.byKey(const Key('runi-nav-button')));
     await tester.pumpAndSettle();

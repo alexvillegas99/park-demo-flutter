@@ -7,7 +7,6 @@
 <title>Mapa Expo Feria Mushuc Runa</title>
 <link rel="icon" href="data:,">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&amp;family=Nunito:wght@500;600;700;800;900&amp;display=swap" media="all" onload="this.media='all'">
 <style>
   :root{
     --bg:#0d1b1e; --panel:#12262b; --panel2:#183238; --line:#22454d;
@@ -19,7 +18,7 @@
   #viewport{position:fixed;inset:0;overflow:hidden;background:#0a1416}
   #world{position:absolute;left:0;top:0;transform-origin:0 0;will-change:transform}
   #world img{position:absolute;left:0;top:0;display:block;max-width:none!important;width:1900px;height:1018px;pointer-events:none;user-select:none;-webkit-user-drag:none}
-  #ovl{transition:opacity .2s}
+  #ovl{display:none!important;transition:opacity .2s}
   #routeSvg{position:absolute;left:0;top:0;pointer-events:none;overflow:visible}
 
   /* markers live in screen space */
@@ -97,84 +96,86 @@
 
 <style>
   :root{
-    --bg:#94BD78;--panel:#FFFFFF;--panel2:#F5EDDC;--line:#F0E4CC;
-    --ink:#33201A;--ink2:#8A6F5E;--teal:#7A1315;--yellow:#E2B563;--red:#9A1B1E;
-    --wine:#7A1315;--wine-deep:#56090B;--gold:#E2B563;--gold-deep:#C08A3E;--ivory:#FAF3E6;
+    --brand-wine:#7A0708;--brand-wine-deep:#5E0000;--brand-green:#004F18;
+    --brand-gold:#BEA458;--brand-ink:#0A0203;--brand-wine-soft:#F5E7E7;
+    --bg:#F7F5EF;--panel:#FFFFFF;--panel2:#F4EDD9;--line:#E8DFC8;
+    --ink:var(--brand-ink);--ink2:#706467;--teal:var(--brand-wine);--yellow:var(--brand-gold);--red:var(--brand-wine-deep);
+    --wine:var(--brand-wine);--wine-deep:var(--brand-wine-deep);--gold:var(--brand-gold);--gold-deep:#806C36;--ivory:#FAF7EF;
   }
-  body{background:linear-gradient(160deg,#A8C98A 0%,#94BD78 45%,#7FAE66 100%);color:var(--ink);font-family:Nunito,system-ui,-apple-system,sans-serif}
-  #viewport{background:linear-gradient(160deg,#A8C98A 0%,#94BD78 45%,#7FAE66 100%)}
-  #world img{filter:saturate(.86) brightness(1.04) contrast(.94)}
+  body{background:linear-gradient(160deg,#FCFAF5 0%,#F7F5EF 48%,#EFEADC 100%);color:var(--ink);font-family:Nunito,system-ui,-apple-system,sans-serif}
+  #viewport{background:linear-gradient(160deg,#FCFAF5 0%,#F7F5EF 48%,#EFEADC 100%)}
+  #world img{filter:saturate(.92) brightness(1.04) contrast(.96)}
 
-  header{top:10px;left:12px;right:12px;padding:0;background:none;filter:drop-shadow(0 8px 18px rgba(51,32,26,.18))}
+  header{top:10px;left:12px;right:12px;padding:0;background:none;filter:drop-shadow(0 8px 18px rgba(10,2,3,.18))}
   header .row{gap:9px;background:rgba(255,255,255,.97);border:1.5px solid var(--line);border-radius:22px;padding:7px}
-  #brand{width:54px;height:44px;padding:0;border-radius:15px;background:linear-gradient(135deg,var(--wine),var(--wine-deep));color:var(--gold);display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:'Baloo 2',Nunito,sans-serif;font-size:10px;line-height:1;box-shadow:0 5px 12px rgba(122,19,21,.24);border:1.5px solid var(--gold)}
-  #brand small{font-family:Nunito,sans-serif;font-size:6px;letter-spacing:.08em;margin-top:2px;color:#FFF3D7}
+  #brand{width:54px;height:44px;padding:0;border-radius:15px;background:linear-gradient(135deg,var(--wine),var(--wine-deep));color:var(--gold);display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:'Baloo 2',Nunito,sans-serif;font-size:10px;line-height:1;box-shadow:0 5px 12px rgba(122,7,8,.24);border:1.5px solid var(--gold)}
+  #brand small{font-family:Georgia,'Times New Roman',serif;font-size:6px;letter-spacing:.08em;margin-top:2px;color:#FFF3D7}
   #search{height:44px;background:var(--ivory);border:1.5px solid var(--line);color:var(--ink);border-radius:15px;padding:10px 13px;font-family:Nunito,system-ui,sans-serif;font-size:13px;font-weight:800}
   #search::placeholder{color:#A08C74}
 
-  #chips{top:78px;left:12px;right:12px;padding:7px;background:rgba(255,255,255,.97);border:1.5px solid var(--line);border-radius:23px;gap:5px;box-shadow:0 8px 20px rgba(51,32,26,.18)}
+  #chips{top:78px;left:12px;right:12px;padding:7px;background:rgba(255,255,255,.97);border:1.5px solid var(--line);border-radius:23px;gap:5px;box-shadow:0 8px 20px rgba(10,2,3,.18)}
   .chip{min-width:66px;min-height:56px;padding:5px 7px;gap:3px;flex-direction:column;justify-content:center;background:transparent!important;border:0;color:#A08C74;border-radius:16px;font-size:9px;font-weight:900;line-height:1}
-  .chip .sw{width:31px;height:31px;border:2px solid #FFF;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#FFF;font-size:14px;box-shadow:0 3px 8px rgba(51,32,26,.18)}
+  .chip .sw{width:31px;height:31px;border:2px solid #FFF;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#FFF;font-size:14px;box-shadow:0 3px 8px rgba(10,2,3,.18)}
   .chip .sw svg{width:20px;height:20px;color:#FFF}
-  .chip.on{background:#FBEED3!important;color:var(--wine)}
+  .chip.on{background:var(--brand-wine-soft)!important;color:var(--wine)}
   .chip.on .sw{outline:2px solid var(--gold);outline-offset:1px}
   .chip-label{max-width:62px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
-  .pin{filter:drop-shadow(0 5px 7px rgba(51,32,26,.28))}
-  .pin .dot{width:36px;height:36px;border-radius:50% 50% 50% 7px;border:2.5px solid #FFF;transform:rotate(-45deg);font-size:16px;box-shadow:0 5px 12px rgba(51,32,26,.2)}
+  .pin{filter:drop-shadow(0 5px 7px rgba(10,2,3,.28))}
+  .pin .dot{width:36px;height:36px;border-radius:50% 50% 50% 7px;border:2.5px solid #FFF;transform:rotate(-45deg);font-size:16px;box-shadow:0 5px 12px rgba(10,2,3,.2)}
   .pin .pin-icon{display:flex;align-items:center;justify-content:center;transform:rotate(45deg)}
   .pin .pin-icon svg{width:23px;height:23px;color:#FFF}
   .pin.small .dot{width:28px;height:28px;font-size:11px;border-width:2px}
   .pin.zona .dot{border-radius:9px;transform:rotate(0)}
   .pin.zona .pin-icon{transform:none}
   .pin.sel .dot{outline:3px solid var(--gold);outline-offset:2px}
-  .pin .tag{margin-top:5px;padding:3px 8px;border-radius:10px;background:rgba(255,255,255,.96);color:var(--ink);font-size:9.5px;font-weight:900;box-shadow:0 3px 8px rgba(51,32,26,.16)}
+  .pin .tag{margin-top:5px;padding:3px 8px;border-radius:10px;background:rgba(255,255,255,.96);color:var(--ink);font-size:9.5px;font-weight:900;box-shadow:0 3px 8px rgba(10,2,3,.16)}
   .pin.sel .tag{background:var(--wine);color:var(--gold)}
-  .pin.venue{z-index:19;filter:drop-shadow(0 9px 13px rgba(86,9,11,.34))}
-  .pin.venue .dot{width:58px;height:58px;border-width:4px;border-color:#FFF3D7;background:linear-gradient(145deg,var(--wine),var(--wine-deep))!important;font-size:27px;box-shadow:0 0 0 5px rgba(226,181,99,.52),0 9px 18px rgba(86,9,11,.3)}
+  .pin.venue{z-index:19;filter:drop-shadow(0 9px 13px rgba(94,0,0,.34))}
+  .pin.venue .dot{width:58px;height:58px;border-width:4px;border-color:#FFF3D7;background:linear-gradient(145deg,var(--wine),var(--wine-deep))!important;font-size:27px;box-shadow:0 0 0 5px rgba(190,164,88,.52),0 9px 18px rgba(94,0,0,.3)}
   .pin.venue .tag{display:block;margin-top:8px;padding:6px 10px;border:2px solid var(--gold);background:var(--wine-deep);color:#FFF7E6;font-size:10px;letter-spacing:.1px}
   .pin.venue.sel .dot{outline:4px solid #FFF;outline-offset:5px}
   .pin.access{z-index:16;filter:drop-shadow(0 7px 10px rgba(19,97,58,.32))}
-  .pin.access .dot{width:44px;height:44px;border-width:3px;background:linear-gradient(145deg,#2EA65E,#157342)!important;box-shadow:0 0 0 3px rgba(205,239,215,.7),0 7px 14px rgba(19,97,58,.25)}
-  .pin.access .tag{border:1px solid #BFE7CA;background:#145B37;color:#FFF}
+  .pin.access .dot{width:44px;height:44px;border-width:3px;background:linear-gradient(145deg,#0B7A31,var(--brand-green))!important;box-shadow:0 0 0 3px rgba(205,239,215,.7),0 7px 14px rgba(0,79,24,.25)}
+  .pin.access .tag{border:1px solid #BFE7CA;background:var(--brand-green);color:#FFF}
 
-  #me{z-index:18;filter:drop-shadow(0 5px 8px rgba(51,32,26,.28))}
+  #me{z-index:18;filter:drop-shadow(0 5px 8px rgba(10,2,3,.28))}
   #me::before{content:'Estás aquí';position:absolute;left:0;top:-50px;transform:translateX(-50%);background:var(--wine);border:2px solid var(--gold);color:#FFF;padding:6px 10px;border-radius:13px;font-size:10px;font-weight:900;line-height:1;white-space:nowrap}
   #me::after{content:'';position:absolute;left:0;top:-21px;transform:translateX(-50%);border-left:7px solid transparent;border-right:7px solid transparent;border-top:9px solid var(--wine)}
-  #me .acc{background:rgba(226,181,99,.28);border:1px solid rgba(122,19,21,.5)}
-  #me .core{width:17px;height:17px;background:var(--gold);border:3px solid var(--wine);box-shadow:0 0 0 5px rgba(226,181,99,.28)}
+  #me .acc{background:rgba(190,164,88,.28);border:1px solid rgba(122,7,8,.5)}
+  #me .core{width:17px;height:17px;background:var(--gold);border:3px solid var(--wine);box-shadow:0 0 0 5px rgba(190,164,88,.28)}
 
   .fabs{right:14px;bottom:112px;gap:8px}
-  .fab{width:42px;height:42px;border-radius:14px;background:rgba(255,255,255,.97);border:1.5px solid var(--line);color:var(--wine);font-family:Nunito,sans-serif;font-size:20px;font-weight:900;box-shadow:0 5px 12px rgba(51,32,26,.18)}
+  .fab{width:42px;height:42px;border-radius:14px;background:rgba(255,255,255,.97);border:1.5px solid var(--line);color:var(--wine);font-family:Nunito,sans-serif;font-size:20px;font-weight:900;box-shadow:0 5px 12px rgba(10,2,3,.18)}
   .fab.on{background:var(--wine);color:var(--gold);border-color:var(--gold)}
-  #gpsStatus{position:fixed;right:64px;bottom:112px;z-index:20;min-height:42px;display:flex;align-items:center;gap:8px;padding:8px 12px;background:rgba(255,255,255,.97);border:1.5px solid var(--line);border-radius:14px;color:var(--wine);font-size:10px;font-weight:900;box-shadow:0 5px 12px rgba(51,32,26,.18);pointer-events:none;white-space:nowrap}
-  #gpsStatus .signal{width:10px;height:10px;border-radius:50%;background:#C08A3E;box-shadow:0 0 0 4px rgba(226,181,99,.22)}
+  #gpsStatus{position:fixed;right:64px;bottom:112px;z-index:20;min-height:42px;display:flex;align-items:center;gap:8px;padding:8px 12px;background:rgba(255,255,255,.97);border:1.5px solid var(--line);border-radius:14px;color:var(--wine);font-size:10px;font-weight:900;box-shadow:0 5px 12px rgba(10,2,3,.18);pointer-events:none;white-space:nowrap}
+  #gpsStatus .signal{width:10px;height:10px;border-radius:50%;background:var(--gold-deep);box-shadow:0 0 0 4px rgba(190,164,88,.22)}
   #gpsStatus[data-state="searching"] .signal{animation:gpsPulse 1.25s ease-in-out infinite}
-  #gpsStatus[data-state="located"]{background:#145B37;border-color:#BFE7CA;color:#FFF}
+  #gpsStatus[data-state="located"]{background:var(--brand-green);border-color:#BFE7CA;color:#FFF}
   #gpsStatus[data-state="located"] .signal{background:#FFF;box-shadow:0 0 0 4px rgba(255,255,255,.2)}
-  #gpsStatus[data-state="denied"],#gpsStatus[data-state="outside"],#gpsStatus[data-state="error"]{color:#8A6F5E}
+  #gpsStatus[data-state="denied"],#gpsStatus[data-state="outside"],#gpsStatus[data-state="error"]{color:var(--ink2)}
   @keyframes gpsPulse{50%{opacity:.45;transform:scale(.72)}}
 
-  #ovlCtl{right:14px;bottom:76px;background:#FFF;border:1.5px solid var(--line);border-radius:15px;box-shadow:0 5px 12px rgba(51,32,26,.18)}
+  #ovlCtl{right:14px;bottom:76px;background:#FFF;border:1.5px solid var(--line);border-radius:15px;box-shadow:0 5px 12px rgba(10,2,3,.18)}
   #ovlCtl label{color:var(--ink2);font-weight:900}
   #ovlCtl input{accent-color:var(--wine)}
 
-  #card{left:16px;right:16px;bottom:14px;background:#FFF;border:1.5px solid var(--line);border-radius:24px;padding:15px 16px;box-shadow:0 14px 30px rgba(51,32,26,.24)}
+  #card{left:16px;right:16px;bottom:14px;background:#FFF;border:1.5px solid var(--line);border-radius:24px;padding:15px 16px;box-shadow:0 14px 30px rgba(10,2,3,.24)}
   #card h2{font-family:'Baloo 2',Nunito,sans-serif;color:var(--ink);font-size:18px;font-weight:800}
-  #card h2 .ic{width:42px;height:42px;border-radius:14px;font-size:18px;box-shadow:0 5px 12px rgba(51,32,26,.18)}
+  #card h2 .ic{width:42px;height:42px;border-radius:14px;font-size:18px;box-shadow:0 5px 12px rgba(10,2,3,.18)}
   #card h2 .ic svg{width:25px;height:25px;color:#FFF}
   #card .sub{color:var(--gold-deep);font-size:10px;font-weight:900;letter-spacing:.7px;text-transform:uppercase}
-  #card .dist{color:#2F6B2B;font-size:12px;font-weight:900}
+  #card .dist{color:var(--brand-green);font-size:12px;font-weight:900}
   #eventSchedule{display:none;margin-top:10px;padding:10px 12px;background:var(--ivory);border:1px solid var(--line);border-radius:16px}
   #eventSchedule.open{display:block}
   #eventSchedule .schedule-title{color:var(--wine);font-size:9px;font-weight:900;letter-spacing:1.2px}
   #eventList{display:grid;gap:6px;margin-top:7px}
   .event-row{display:grid;grid-template-columns:46px 1fr auto;gap:8px;align-items:center;color:var(--ink);font-size:11px;font-weight:800}
   .event-time{color:var(--gold-deep);font-weight:900}
-  .event-status{padding:3px 6px;border-radius:8px;background:#E7F3DE;color:#2F6B2B;font-size:8px;font-weight:900;text-transform:uppercase}
+  .event-status{padding:3px 6px;border-radius:8px;background:#E2EEE5;color:var(--brand-green);font-size:8px;font-weight:900;text-transform:uppercase}
   #card button{border-radius:18px;font-family:Nunito,sans-serif;font-size:12px;padding:10px 12px}
-  #goBtn{background:var(--wine);color:#FFF;box-shadow:0 7px 14px rgba(122,19,21,.25)}
-  #closeBtn{background:#F5EDDC;color:var(--wine);border:0!important}
+  #goBtn{background:var(--wine);color:#FFF;box-shadow:0 7px 14px rgba(122,7,8,.25)}
+  #closeBtn{background:var(--panel2);color:var(--wine);border:0!important}
   #toast{bottom:92px;background:var(--wine-deep);border:1.5px solid var(--gold);color:#FFF;border-radius:14px;font-family:Nunito,sans-serif;font-weight:800}
 
   #editBar{top:148px;background:#FFF5DC;border:1.5px solid var(--gold);color:#7A4D0A;border-radius:14px}
@@ -188,6 +189,7 @@
     #brand{width:50px}.pin .tag{font-size:8.5px}
   }
 </style>
+<link rel="stylesheet" href="./admin_editor.css">
 
 
 <div id="viewport">
@@ -199,7 +201,7 @@
     </svg>
   </div>
 </div>
-<div id="pins"><div class="pin showtag" style="transform: translate(1088.68px, 72.1px) translate(-50%, -100%);"><div class="dot" style="background:#1b7fd4">🚻</div><div class="tag">Baños 1</div></div><div class="pin showtag" style="transform: translate(1368.86px, 139.008px) translate(-50%, -100%);"><div class="dot" style="background:#1b7fd4">🚻</div><div class="tag">Baños 2</div></div><div class="pin showtag" style="transform: translate(1262.6px, 188.332px) translate(-50%, -100%);"><div class="dot" style="background:#1b7fd4">🚻</div><div class="tag">Baños 3</div></div><div class="pin showtag" style="transform: translate(1553.5px, 95.0462px) translate(-50%, -100%);"><div class="dot" style="background:#1b7fd4">🚻</div><div class="tag">Baños 4</div></div><div class="pin showtag" style="transform: translate(777.41px, 364.502px) translate(-50%, -100%);"><div class="dot" style="background:#1b7fd4">🚻</div><div class="tag">Baños 5</div></div><div class="pin showtag" style="transform: translate(1071.64px, 315.93px) translate(-50%, -100%);"><div class="dot" style="background:#1b7fd4">🚻</div><div class="tag">Baños 6</div></div><div class="pin showtag" style="transform: translate(1528.52px, 168.174px) translate(-50%, -100%);"><div class="dot" style="background:#1b7fd4">🚻</div><div class="tag">Baños 7</div></div><div class="pin showtag" style="transform: translate(412.095px, 573.698px) translate(-50%, -100%);"><div class="dot" style="background:#1b7fd4">🚻</div><div class="tag">Baños 8</div></div><div class="pin showtag" style="transform: translate(1169.96px, 446.851px) translate(-50%, -100%);"><div class="dot" style="background:#1b7fd4">🚻</div><div class="tag">Baños 9</div></div><div class="pin showtag" style="transform: translate(1263.25px, 420.474px) translate(-50%, -100%);"><div class="dot" style="background:#1b7fd4">🚻</div><div class="tag">Baños 10</div></div><div class="pin showtag" style="transform: translate(759.289px, 630.42px) translate(-50%, -100%);"><div class="dot" style="background:#1b7fd4">🚻</div><div class="tag">Baños 11</div></div><div class="pin showtag" style="transform: translate(233.244px, 426.907px) translate(-50%, -100%);"><div class="dot" style="background:#3fa34d">➡️</div><div class="tag">Acceso 1 · Turistas</div></div><div class="pin showtag" style="transform: translate(175.878px, 759.519px) translate(-50%, -100%);"><div class="dot" style="background:#3fa34d">➡️</div><div class="tag">Acceso 2 · Expositores/Auspiciantes/Patio Luna</div></div><div class="pin showtag" style="transform: translate(327.066px, 1096.63px) translate(-50%, -100%);"><div class="dot" style="background:#3fa34d">➡️</div><div class="tag">Acceso 3 · Expositores/Auspiciantes/Turistas</div></div><div class="pin showtag" style="transform: translate(1629.96px, 502.823px) translate(-50%, -100%);"><div class="dot" style="background:#3fa34d">➡️</div><div class="tag">Acceso 4 · Auspiciantes/Negocios/Patio Mega</div></div><div class="pin showtag" style="transform: translate(1603.15px, 55.9091px) translate(-50%, -100%);"><div class="dot" style="background:#3fa34d">➡️</div><div class="tag">Acceso 5 · Expositores/Turistas</div></div><div class="pin showtag" style="transform: translate(1622.77px, 55.9091px) translate(-50%, -100%);"><div class="dot" style="background:#3fa34d">➡️</div><div class="tag">Acceso 6 · Ingreso vehicular</div></div><div class="pin showtag" style="transform: translate(1618.27px, 637.604px) translate(-50%, -100%);"><div class="dot" style="background:#e23a3a">🏁</div><div class="tag">Salida 1</div></div><div class="pin showtag" style="transform: translate(397.62px, 55.9091px) translate(-50%, -100%);"><div class="dot" style="background:#e23a3a">🏁</div><div class="tag">Salida 2</div></div><div class="pin showtag" style="transform: translate(1612.26px, 55.9091px) translate(-50%, -100%);"><div class="dot" style="background:#e23a3a">🏁</div><div class="tag">Salida 3</div></div><div class="pin showtag" style="transform: translate(1142.83px, 391.63px) translate(-50%, -100%);"><div class="dot" style="background:#e0762e">🎡</div><div class="tag">Mega Escenario (conciertos)</div></div><div class="pin showtag" style="transform: translate(1162.13px, 175.25px) translate(-50%, -100%);"><div class="dot" style="background:#e0762e">🎡</div><div class="tag">Mushuc Park</div></div><div class="pin showtag" style="transform: translate(807.219px, 220.392px) translate(-50%, -100%);"><div class="dot" style="background:#e0762e">🎡</div><div class="tag">Resbaladera Gigante</div></div><div class="pin showtag" style="transform: translate(884.957px, 246.877px) translate(-50%, -100%);"><div class="dot" style="background:#e0762e">🎡</div><div class="tag">Parque de Dinosaurios</div></div><div class="pin showtag" style="transform: translate(1242.23px, 501.965px) translate(-50%, -100%);"><div class="dot" style="background:#e0762e">🎡</div><div class="tag">Juegos mecánicos</div></div><div class="pin showtag" style="transform: translate(967.949px, 460.469px) translate(-50%, -100%);"><div class="dot" style="background:#e0762e">🎡</div><div class="tag">Show Militar</div></div><div class="pin showtag" style="transform: translate(684.661px, 444.707px) translate(-50%, -100%);"><div class="dot" style="background:#e0762e">🎡</div><div class="tag">Shows cómicos</div></div><div class="pin showtag" style="transform: translate(353.872px, 920.357px) translate(-50%, -100%);"><div class="dot" style="background:#e0762e">🎡</div><div class="tag">Plaza de toros</div></div><div class="pin showtag" style="transform: translate(748.889px, 469.476px) translate(-50%, -100%);"><div class="dot" style="background:#e0762e">🎡</div><div class="tag">Plaza de la luna</div></div><div class="pin showtag" style="transform: translate(1441.78px, 299.524px) translate(-50%, -100%);"><div class="dot" style="background:#b03a78">ℹ️</div><div class="tag">Granja</div></div><div class="pin showtag" style="transform: translate(822.981px, 537.564px) translate(-50%, -100%);"><div class="dot" style="background:#c8532c">🍽️</div><div class="tag">Patio de comidas La Luna</div></div><div class="pin showtag" style="transform: translate(1298.09px, 358.498px) translate(-50%, -100%);"><div class="dot" style="background:#c8532c">🍽️</div><div class="tag">Patio de comidas Megaescenario</div></div><div class="pin showtag" style="transform: translate(652.493px, 415.327px) translate(-50%, -100%);"><div class="dot" style="background:#c8532c">🍽️</div><div class="tag">Cocina</div></div><div class="pin showtag" style="transform: translate(1361.46px, 426.264px) translate(-50%, -100%);"><div class="dot" style="background:#c8532c">🍽️</div><div class="tag">Cerveza artesanal (zona 9)</div></div><div class="pin showtag" style="transform: translate(634.051px, 216.746px) translate(-50%, -100%);"><div class="dot" style="background:#b03a78">ℹ️</div><div class="tag">Boletería 1</div></div><div class="pin showtag" style="transform: translate(1031.96px, 147.158px) translate(-50%, -100%);"><div class="dot" style="background:#b03a78">ℹ️</div><div class="tag">Boletería 2</div></div><div class="pin showtag" style="transform: translate(1405.21px, 55.9091px) translate(-50%, -100%);"><div class="dot" style="background:#b03a78">ℹ️</div><div class="tag">Boletería 3</div></div><div class="pin showtag" style="transform: translate(1547.07px, 505.503px) translate(-50%, -100%);"><div class="dot" style="background:#b03a78">ℹ️</div><div class="tag">Boletería 4</div></div><div class="pin showtag" style="transform: translate(314.091px, 547.643px) translate(-50%, -100%);"><div class="dot" style="background:#b03a78">ℹ️</div><div class="tag">Boletería 5</div></div><div class="pin showtag" style="transform: translate(1221.11px, 192.943px) translate(-50%, -100%);"><div class="dot" style="background:#b03a78">ℹ️</div><div class="tag">Oficina de ventas</div></div><div class="pin showtag" style="transform: translate(1223.04px, 238.942px) translate(-50%, -100%);"><div class="dot" style="background:#b03a78">ℹ️</div><div class="tag">Dispensario médico</div></div><div class="pin showtag" style="transform: translate(1312.14px, 313.356px) translate(-50%, -100%);"><div class="dot" style="background:#b03a78">ℹ️</div><div class="tag">Punto de hidratación</div></div><div class="pin small" style="display: none;"><div class="dot" style="background:#7a5fd0">🅿️</div><div class="tag">Estacionamiento E1 · auspiciantes/corporativos</div></div><div class="pin small" style="display: none;"><div class="dot" style="background:#7a5fd0">🅿️</div><div class="tag">Estacionamiento E2 · expositores</div></div><div class="pin small" style="display: none;"><div class="dot" style="background:#7a5fd0">🅿️</div><div class="tag">Estacionamiento V · expositores</div></div><div class="pin small" style="display: none;"><div class="dot" style="background:#7a5fd0">🅿️</div><div class="tag">Estacionamiento R · negocios y patio luna</div></div><div class="pin small" style="display: none;"><div class="dot" style="background:#7a5fd0">🅿️</div><div class="tag">Est. logística I</div></div><div class="pin small" style="display: none;"><div class="dot" style="background:#7a5fd0">🅿️</div><div class="tag">Est. logística II</div></div><div class="pin small" style="display: none;"><div class="dot" style="background:#7a5fd0">🅿️</div><div class="tag">Est. logística III</div></div><div class="pin small" style="display: none;"><div class="dot" style="background:#7a5fd0">🅿️</div><div class="tag">Est. logística IV</div></div><div class="pin small" style="display: none;"><div class="dot" style="background:#7a5fd0">🅿️</div><div class="tag">Est. logística V</div></div><div class="pin small" style="display: none;"><div class="dot" style="background:#7a5fd0">🅿️</div><div class="tag">Est. logística VI</div></div><div class="pin small" style="display: none;"><div class="dot" style="background:#5c6b70">🚌</div><div class="tag">Estación de trasbordo</div></div><div class="pin small" style="display: none;"><div class="dot" style="background:#5c6b70">🚌</div><div class="tag">Estación de trasbordo</div></div><div class="pin small" style="display: none;"><div class="dot" style="background:#5c6b70">🚌</div><div class="tag">Parada T1</div></div><div class="pin small" style="display: none;"><div class="dot" style="background:#5c6b70">🚌</div><div class="tag">Parada T2</div></div><div class="pin small" style="display: none;"><div class="dot" style="background:#5c6b70">🚌</div><div class="tag">Parada T3</div></div><div class="pin small" style="display: none;"><div class="dot" style="background:#5c6b70">🚌</div><div class="tag">Parada T4</div></div><div class="pin small" style="display: none;"><div class="dot" style="background:#5c6b70">🚌</div><div class="tag">Parada T5</div></div><div class="pin small" style="display: none;"><div class="dot" style="background:#5c6b70">🚌</div><div class="tag">Parada T6</div></div><div class="pin small" style="display: none;"><div class="dot" style="background:#5c6b70">🚌</div><div class="tag">Parada T7</div></div><div class="pin small" style="display: none;"><div class="dot" style="background:#5c6b70">🚌</div><div class="tag">Parada T8</div></div><div class="pin small" style="display: none;"><div class="dot" style="background:#5c6b70">🚌</div><div class="tag">Parada T9</div></div><div class="pin small" style="display: none;"><div class="dot" style="background:#5c6b70">🚌</div><div class="tag">Parada T10</div></div><div class="pin small" style="display: none;"><div class="dot" style="background:#5c6b70">🚌</div><div class="tag">Parada T11</div></div><div class="pin small" style="display: none;"><div class="dot" style="background:#5c6b70">🚌</div><div class="tag">Parada T12</div></div><div class="pin showtag" style="transform: translate(1165.99px, 102.981px) translate(-50%, -100%);"><div class="dot" style="background:#b03a78">ℹ️</div><div class="tag">Escáner 1</div></div><div class="pin showtag" style="transform: translate(1313.43px, 130.538px) translate(-50%, -100%);"><div class="dot" style="background:#b03a78">ℹ️</div><div class="tag">Escáner 2</div></div><div class="pin showtag" style="transform: translate(638.768px, 368.47px) translate(-50%, -100%);"><div class="dot" style="background:#b03a78">ℹ️</div><div class="tag">Escáner 3</div></div><div class="pin showtag" style="transform: translate(1394.28px, 390.129px) translate(-50%, -100%);"><div class="dot" style="background:#b03a78">ℹ️</div><div class="tag">Escáner 4</div></div><div class="pin showtag" style="transform: translate(1013.84px, 522.981px) translate(-50%, -100%);"><div class="dot" style="background:#b03a78">ℹ️</div><div class="tag">Escáner 5</div></div><div class="pin showtag" style="transform: translate(852.575px, 592.034px) translate(-50%, -100%);"><div class="dot" style="background:#b03a78">ℹ️</div><div class="tag">Escáner 6</div></div><div class="pin showtag" style="transform: translate(701.066px, 655.189px) translate(-50%, -100%);"><div class="dot" style="background:#b03a78">ℹ️</div><div class="tag">Escáner 7</div></div><div class="pin zona small showtag" style="transform: translate(323.098px, 442.777px) translate(-50%, -100%);"><div class="dot" style="background:#20808a">A</div><div class="tag">Zona A</div></div><div class="pin zona small showtag" style="transform: translate(339.289px, 716.415px) translate(-50%, -100%);"><div class="dot" style="background:#20808a">B</div><div class="tag">Zona B</div></div><div class="pin zona small showtag" style="transform: translate(463.348px, 665.805px) translate(-50%, -100%);"><div class="dot" style="background:#20808a">C</div><div class="tag">Zona C</div></div><div class="pin zona small showtag" style="transform: translate(536.261px, 574.663px) translate(-50%, -100%);"><div class="dot" style="background:#20808a">D</div><div class="tag">Zona D</div></div><div class="pin zona small showtag" style="transform: translate(422.71px, 1005.71px) translate(-50%, -100%);"><div class="dot" style="background:#20808a">F</div><div class="tag">Zona F</div></div><div class="pin zona small showtag" style="transform: translate(505.595px, 920.786px) translate(-50%, -100%);"><div class="dot" style="background:#20808a">G</div><div class="tag">Zona G</div></div><div class="pin zona small showtag" style="transform: translate(621.72px, 877.788px) translate(-50%, -100%);"><div class="dot" style="background:#20808a">I</div><div class="tag">Zona I</div></div><div class="pin zona small showtag" style="transform: translate(914.766px, 936.869px) translate(-50%, -100%);"><div class="dot" style="background:#20808a">J</div><div class="tag">Zona J</div></div><div class="pin zona small showtag" style="transform: translate(796.175px, 780.75px) translate(-50%, -100%);"><div class="dot" style="background:#20808a">K</div><div class="tag">Zona K</div></div><div class="pin zona small showtag" style="transform: translate(947.791px, 793.295px) translate(-50%, -100%);"><div class="dot" style="background:#20808a">L</div><div class="tag">Zona L</div></div><div class="pin zona small showtag" style="transform: translate(882.062px, 677.063px) translate(-50%, -100%);"><div class="dot" style="background:#20808a">M</div><div class="tag">Zona M</div></div><div class="pin zona small showtag" style="transform: translate(1259.92px, 699.152px) translate(-50%, -100%);"><div class="dot" style="background:#20808a">O</div><div class="tag">Zona O</div></div><div class="pin zona small showtag" style="transform: translate(1168.25px, 601.577px) translate(-50%, -100%);"><div class="dot" style="background:#20808a">P</div><div class="tag">Zona P</div></div><div class="pin zona small showtag" style="transform: translate(942.108px, 88.5055px) translate(-50%, -100%);"><div class="dot" style="background:#20808a">S</div><div class="tag">Zona S</div></div><div class="pin zona small showtag" style="transform: translate(978.779px, 55.9091px) translate(-50%, -100%);"><div class="dot" style="background:#20808a">T</div><div class="tag">Zona T</div></div><div class="pin zona small showtag" style="transform: translate(1242.02px, 59.8764px) translate(-50%, -100%);"><div class="dot" style="background:#20808a">U</div><div class="tag">Zona U</div></div><div class="pin zona small showtag" style="transform: translate(1043.97px, 55.9091px) translate(-50%, -100%);"><div class="dot" style="background:#20808a">W</div><div class="tag">Zona W</div></div><div class="pin zona small showtag" style="transform: translate(1260.24px, 55.9091px) translate(-50%, -100%);"><div class="dot" style="background:#20808a">X</div><div class="tag">Zona X</div></div><div class="pin zona small showtag" style="transform: translate(1480.7px, 55.9091px) translate(-50%, -100%);"><div class="dot" style="background:#20808a">Y</div><div class="tag">Zona Y</div></div><div class="pin zona small showtag" style="transform: translate(1472.55px, 55.9091px) translate(-50%, -100%);"><div class="dot" style="background:#20808a">Z</div><div class="tag">Zona Z</div></div></div>
+<div id="pins"></div>
 <div id="me"><div class="acc"></div><div class="core"></div></div>
 
 <header>
@@ -212,16 +214,70 @@
 
 <div id="gpsStatus" data-state="searching" role="status" aria-live="polite"><span class="signal"></span><span id="gpsStatusText">Buscando ubicación…</span></div>
 <div class="fabs">
+  <div class="fab" id="adminFab" title="Administrar mapa" aria-label="Administrar mapa">🛡️</div>
   <div class="fab" id="zoomInFab" title="Aumentar zoom">+</div>
   <div class="fab" id="zoomOutFab" title="Reducir zoom">−</div>
   <div class="fab" id="layerFab" title="Recentrar mapa">🗺️</div>
   <div class="fab" id="gpsFab" title="Mi ubicación">📍</div>
 </div>
 
-<div id="editBar">MODO AJUSTE: toca un pin y luego toca su ubicación correcta.
-  <div class="ebtns"><button id="expBtn">Exportar</button><button id="resetBtn">Restaurar</button><button id="editOff">Salir</button></div>
+<div id="adminLogin" role="dialog" aria-modal="true" aria-labelledby="adminLoginTitle">
+  <form class="admin-modal-card" id="adminLoginForm">
+    <span class="admin-modal-badge">🛡️ Acceso local</span>
+    <h2 id="adminLoginTitle">Administrar el mapa</h2>
+    <p>Edita lugares y eventos guardados en este dispositivo. Esta cuenta es solo para la demostración frontend.</p>
+    <div class="admin-credentials"><strong>Credenciales demo</strong><br>admin@mushucruna.demo<br>Mushuc2026!</div>
+    <div class="admin-field"><label for="adminEmail">Correo</label><input id="adminEmail" type="email" autocomplete="username" value="admin@mushucruna.demo" required></div>
+    <div class="admin-field"><label for="adminPassword">Contraseña</label><input id="adminPassword" type="password" autocomplete="current-password" value="Mushuc2026!" required></div>
+    <div class="admin-error" id="adminLoginError" role="alert"></div>
+    <div class="admin-actions"><button class="admin-btn secondary" type="button" id="adminLoginCancel">Cancelar</button><button class="admin-btn primary" type="submit">Entrar como administrador</button></div>
+  </form>
 </div>
-<div id="exportBox"><textarea id="expTxt" readonly=""></textarea><button id="expClose">Cerrar</button></div>
+
+<div id="adminEventModal" role="dialog" aria-modal="true" aria-labelledby="adminEventTitle">
+  <form class="admin-modal-card" id="adminEventForm">
+    <span class="admin-modal-badge">📅 Programación</span>
+    <h2 id="adminEventTitle">Nuevo evento</h2>
+    <p id="adminEventPlace">Añade una actividad al lugar seleccionado.</p>
+    <input id="adminEventId" type="hidden">
+    <div class="admin-field"><label for="adminEventName">Nombre del evento</label><input id="adminEventName" maxlength="90" required placeholder="Ej. Concierto nacional"></div>
+    <div class="admin-field"><label for="adminEventTime">Hora</label><input id="adminEventTime" type="time" required value="15:00"></div>
+    <div class="admin-field"><label for="adminEventStatus">Estado</label><select id="adminEventStatus"><option value="borrador">Borrador</option><option value="publicado">Publicado</option><option value="cancelado">Cancelado</option></select></div>
+    <div class="admin-field"><label for="adminEventDescription">Descripción</label><textarea id="adminEventDescription" rows="3" maxlength="240" placeholder="Información útil para los visitantes"></textarea></div>
+    <div class="admin-error" id="adminEventError" role="alert"></div>
+    <div class="admin-actions"><button class="admin-btn secondary" type="button" id="adminEventCancel">Cancelar</button><button class="admin-btn primary" type="submit">Guardar evento</button></div>
+  </form>
+</div>
+
+<div id="adminImportModal" role="dialog" aria-modal="true" aria-labelledby="adminJsonTitle">
+  <div class="admin-modal-card admin-json-card">
+    <span class="admin-modal-badge">↕ Respaldo local</span>
+    <h2 id="adminJsonTitle">Exportar configuración</h2>
+    <p id="adminJsonHelp">Copia este documento para respaldar lugares y eventos.</p>
+    <div class="admin-field"><label for="adminJsonText">Documento JSON</label><textarea id="adminJsonText" rows="13" spellcheck="false"></textarea></div>
+    <div class="admin-error" id="adminJsonError" role="alert"></div>
+    <div class="admin-actions"><button class="admin-btn secondary" type="button" id="adminJsonClose">Cerrar</button><button class="admin-btn primary" type="button" id="adminJsonApply">Aplicar importación</button></div>
+  </div>
+</div>
+
+<aside id="adminPanel" aria-label="Editor administrativo del mapa">
+  <div class="admin-panel-head">
+    <div class="admin-panel-title">
+      <div class="admin-panel-mark">✦</div>
+      <div><h2>Mapa y programación</h2><p>Editor administrador</p></div>
+      <button class="admin-panel-close" id="adminClose" aria-label="Cerrar editor">×</button>
+    </div>
+    <div class="admin-status-row"><span class="admin-status-dot"></span><span>Guardado local automático · funciona sin internet</span></div>
+  </div>
+  <div class="admin-toolbar">
+    <input id="adminSearch" type="search" placeholder="Buscar lugar…" autocomplete="off">
+    <select class="admin-filter" id="adminVisibilityFilter" aria-label="Filtrar lugares"><option value="todos">Todos</option><option value="visibles">Visibles</option><option value="ocultos">Ocultos</option></select>
+  </div>
+  <div class="admin-panel-body">
+    <div id="adminPointList"><div class="admin-list-footer"><button class="admin-btn primary" id="adminCreatePoint" type="button">＋ Nuevo punto</button></div></div>
+    <section id="adminInspector"><div class="admin-empty">Selecciona un lugar para editarlo y arrastrarlo en el mapa.</div></section>
+  </div>
+</aside>
 
 <div id="card">
   <h2><span class="ic" id="cIc"></span><span id="cName"></span></h2>
@@ -232,6 +288,7 @@
 </div>
 <div id="toast"></div>
 
+<script src="./admin_editor.js"></script>
 <script src="./map_filter.js"></script>
 <script>
 'use strict';
@@ -263,7 +320,7 @@ POIS.push({
 });
 
 const CATS={
-  evento:{c:'#7A1315',i:'🎤',l:'Eventos'},
+  evento:{c:'#7A0708',i:'🎤',l:'Eventos'},
   bano:{c:'#1b7fd4',i:'🚻',l:'Baños'},
   acceso:{c:'#3fa34d',i:'➡️',l:'Accesos'},
   salida:{c:'#e23a3a',i:'🏁',l:'Salidas'},
@@ -275,9 +332,17 @@ const CATS={
   zona:{c:'#20808a',i:'',l:'Zonas'}
 };
 const FILTERS=[
-  ['todos',{c:'#7A1315',i:'✦',l:'Todos'}],
+  ['todos',{c:'#7A0708',i:'✦',l:'Todos'}],
   ...Object.entries(CATS)
 ];
+const adminDocument=new MapAdminDocument(POIS,localStorage);
+const adminSession=new MapAdminSession();
+let adminMode=false,adminSelectedId=null,adminDrag=null;
+function syncPoisFromDocument(rebuild=true){
+  const snapshot=JSON.parse(JSON.stringify(adminDocument.places));
+  POIS.splice(0,POIS.length,...snapshot);
+  if(rebuild){buildPins();renderPins();}
+}
 
 /* ============ georef (base px 1900x1018 <-> lat/lng) ============ */
 const GF={p:0.44185994261082073,q:0.03809624037398862,tx:-408.432125697813,ty:271.33543876584343,
@@ -286,6 +351,12 @@ function ll2base(lat,lng){
   const X=(lng+78.65)*GF.mlng, Y=(lat+1.369)*GF.mlat, s2=GF.p*GF.p+GF.q*GF.q;
   const ex=(GF.p*(X-GF.tx)+GF.q*(Y-GF.ty))/s2, ey=(GF.q*(X-GF.tx)-GF.p*(Y-GF.ty))/s2;
   return [ex*GF.F, ey*GF.F];
+}
+function base2ll(x,y){
+  const ex=x/GF.F,ey=y/GF.F;
+  const X=GF.tx+GF.p*ex+GF.q*ey;
+  const Y=GF.ty+GF.q*ex-GF.p*ey;
+  return [Y/GF.mlat-1.369,X/GF.mlng-78.65];
 }
 function distM(ax,ay,bx,by){ // in base px -> meters (1 full px = s m; base px = full*F)
   const s=Math.hypot(GF.p,GF.q)/GF.F;
@@ -332,8 +403,7 @@ vp.addEventListener('pointermove',e=>{
     if(lastDist>0) zoomAt(mid[0],mid[1],d/lastDist); else apply();
     lastDist=d; lastMid=mid; moved=true;}
 });
-function endPtr(e){ptrs.delete(e.pointerId); if(ptrs.size<2){lastDist=0;lastMid=null;}
-  if(ptrs.size===0&&!moved&&editSel!==null){moveSelected(e.clientX,e.clientY);} }
+function endPtr(e){ptrs.delete(e.pointerId); if(ptrs.size<2){lastDist=0;lastMid=null;} }
 vp.addEventListener('pointerup',endPtr); vp.addEventListener('pointercancel',endPtr);
 vp.addEventListener('wheel',e=>{e.preventDefault();zoomAt(e.clientX,e.clientY,e.deltaY<0?1.15:0.87);},{passive:false});
 addEventListener('resize',()=>{fit();apply();});
@@ -348,14 +418,16 @@ function buildPins(){
   for(const p of POIS){
     const c=CATS[p.cat]; const el=document.createElement('div');
     el.className='pin'+(p.cat==='zona'?' zona small':'')+((p.cat==='trans'||p.cat==='parqueo')?' small':'')+(p.venue?' venue':'')+(p.cat==='acceso'?' access':'');
+    el.dataset.pointId=String(p.id);
     const fallback=p.icon||(p.cat==='zona'?p.name.replace('Zona ',''):c.i);
-    el.innerHTML=`<div class="dot" style="background:${c.c}"><span class="pin-icon">${MapMarkerIcons.forCategory(p.cat,fallback)}</span></div><div class="tag">${p.name}</div>`;
+    el.innerHTML=`<div class="dot" style="background:${c.c}"><span class="pin-icon">${MapMarkerIcons.forCategory(p.cat,fallback)}</span></div><div class="tag">${escapeHTML(p.name)}</div>`;
     el.addEventListener('click',ev=>{ev.stopPropagation();onPin(p);});
+    el.addEventListener('pointerdown',ev=>{if(adminMode)beginAdminDrag(ev,p.id);});
     pinsEl.appendChild(el); pinDom.set(p.id,el);
   }
 }
 function pinVisible(p){
-  return filterModel.matches(p);
+  return (adminMode||p.isVisible!==false)&&filterModel.matches(p);
 }
 function renderPins(){
   const showTags=sc>0.9;
@@ -363,11 +435,12 @@ function renderPins(){
     const el=pinDom.get(p.id); if(!el)continue;
     if(!pinVisible(p)){el.style.display='none';continue;}
     el.style.display='';
+    el.style.opacity=adminMode&&p.isVisible===false?'.42':'1';
     const x=p.x*sc+tx, y=p.y*sc+ty;
     if(x<-60||y<-60||x>innerWidth+60||y>innerHeight+60){el.style.display='none';continue;}
     el.style.transform=`translate(${x}px,${y}px) translate(-50%,-100%)`;
     el.classList.toggle('showtag',showTags||p.id===selId||!!p.venue);
-    el.classList.toggle('sel',p.id===selId||p.id===editSel);
+    el.classList.toggle('sel',p.id===selId||String(p.id)===String(adminSelectedId));
   }
 }
 
@@ -398,7 +471,7 @@ document.getElementById('search').addEventListener('input',e=>{
 const card=document.getElementById('card');
 let target=null;
 function onPin(p){
-  if(editMode){editSel=(editSel===p.id?null:p.id);renderPins();toast(editSel!==null?'Ahora toca la ubicación correcta':'Pin deseleccionado');return;}
+  if(adminMode){selectAdminPoint(p.id,false);return;}
   selId=p.id; target=null; routeLine.style.display='none';
   const c=CATS[p.cat];
   document.getElementById('cIc').style.background=c.c;
@@ -408,8 +481,9 @@ function onPin(p){
   document.getElementById('cCat').textContent=c.l;
   const schedule=document.getElementById('eventSchedule');
   const eventList=document.getElementById('eventList');
-  if(p.events?.length){
-    eventList.innerHTML=p.events.map(event=>`<div class="event-row"><span class="event-time">${event.time}</span><span>${event.title}</span><span class="event-status">${event.status}</span></div>`).join('');
+  const publishedEvents=(p.events||[]).filter(event=>event.status==='publicado');
+  if(publishedEvents.length){
+    eventList.innerHTML=publishedEvents.map(event=>`<div class="event-row"><span class="event-time">${escapeHTML(event.time)}</span><span>${escapeHTML(event.title)}</span><span class="event-status">Publicado</span></div>`).join('');
     schedule.classList.add('open');
   }else{
     eventList.innerHTML='';schedule.classList.remove('open');
@@ -496,41 +570,292 @@ document.getElementById('gpsFab').addEventListener('click',()=>{
   if(me.ok){centerOnMe();}else{startGPS();toast('Buscando tu ubicación…');}
 });
 
-/* ============ recenter illustrated map ============ */
-const ovl=document.getElementById('ovl');
+/* ============ recenter clean map ============ */
 document.getElementById('layerFab').addEventListener('click',()=>{
-  fit();ovl.style.opacity=.88;apply();toast('Mapa centrado');
+  fit();apply();toast('Mapa centrado');
 });
 
-/* ============ edit mode (long-press on brand) ============ */
-let editMode=false, editSel=null, pressT=null;
-const brand=document.getElementById('brand');
-brand.addEventListener('pointerdown',()=>{pressT=setTimeout(()=>{setEdit(!editMode);},1200);});
-brand.addEventListener('pointerup',()=>clearTimeout(pressT));
-brand.addEventListener('pointerleave',()=>clearTimeout(pressT));
-function setEdit(on){editMode=on;editSel=null;document.getElementById('editBar').classList.toggle('on',on);
-  toast(on?'Modo ajuste activado':'Modo ajuste desactivado');renderPins();}
-document.getElementById('editOff').addEventListener('click',()=>setEdit(false));
-function moveSelected(cx,cy){
-  const p=POIS.find(x=>x.id===editSel); if(!p)return;
-  p.x=(cx-tx)/sc; p.y=(cy-ty)/sc; editSel=null;
-  saveCustom(); renderPins(); toast(`"${p.name}" reubicado ✓`);
+/* ============ admin: login + list + direct dragging ============ */
+const adminLogin=document.getElementById('adminLogin');
+const adminPanel=document.getElementById('adminPanel');
+const adminPointList=document.getElementById('adminPointList');
+const adminInspector=document.getElementById('adminInspector');
+
+function escapeHTML(value){
+  return String(value==null?'':value)
+    .replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;')
+    .replaceAll('"','&quot;').replaceAll("'",'&#039;');
 }
-function saveCustom(){
-  try{const o={};for(const p of POIS)o[p.id]=[Math.round(p.x*10)/10,Math.round(p.y*10)/10];
-    localStorage.setItem('mr_pois',JSON.stringify(o));}catch(e){}
+
+function openAdminLogin(){
+  document.getElementById('adminLoginError').textContent='';
+  adminLogin.classList.add('open');
+  setTimeout(()=>document.getElementById('adminEmail').focus(),60);
 }
-function loadCustom(){
-  try{const o=JSON.parse(localStorage.getItem('mr_pois')||'null');if(!o)return;
-    for(const p of POIS){if(o[p.id]){p.x=o[p.id][0];p.y=o[p.id][1];}}}catch(e){}
+
+function closeAdminLogin(){adminLogin.classList.remove('open');}
+
+function openAdminPanel(){
+  try{adminSession.requireCanEdit();}catch(_){openAdminLogin();return;}
+  closeAdminLogin();adminMode=true;document.body.classList.add('admin-mode');
+  adminPanel.classList.add('open');card.classList.remove('open');selId=null;
+  filterModel.search='';filterModel.select('todos');
+  document.getElementById('search').value='';updateChips();
+  renderAdminPointList();
+  const first=POIS.find(p=>p.isFeatured&&p.isVisible!==false)||POIS[0];
+  if(first)selectAdminPoint(first.id,true);
+  buildPins();renderPins();
 }
-document.getElementById('expBtn').addEventListener('click',()=>{
-  document.getElementById('expTxt').value=JSON.stringify(POIS.map(p=>({id:p.id,name:p.name,x:Math.round(p.x*10)/10,y:Math.round(p.y*10)/10})));
-  document.getElementById('exportBox').classList.add('open');
-  try{navigator.clipboard.writeText(document.getElementById('expTxt').value);toast('JSON copiado al portapapeles');}catch(e){}
+
+function closeAdminPanel(){
+  adminSession.logout();
+  adminMode=false;adminSelectedId=null;adminPanel.classList.remove('open');
+  document.body.classList.remove('admin-mode','admin-dragging');
+  buildPins();renderPins();toast('Vista de visitante activada');
+}
+
+function centerAdminPoint(point){
+  sc=Math.max(sc,1.22);
+  const narrow=innerWidth<=700;
+  const centerX=narrow?innerWidth/2:(340+innerWidth)/2;
+  const centerY=narrow?innerHeight*.27:innerHeight/2;
+  tx=centerX-point.x*sc;ty=centerY-point.y*sc;clampView();apply();
+}
+
+function selectAdminPoint(id,center=true){
+  const point=POIS.find(p=>String(p.id)===String(id));if(!point)return;
+  adminSelectedId=point.id;
+  if(center)centerAdminPoint(point);
+  renderAdminPointList();renderAdminInspector();renderPins();
+}
+
+function renderAdminPointList(){
+  const query=document.getElementById('adminSearch').value.trim().toLowerCase();
+  const visibility=document.getElementById('adminVisibilityFilter').value;
+  const matches=POIS.filter(point=>{
+    const text=`${point.name} ${(CATS[point.cat]||{}).l||''}`.toLowerCase();
+    const visible=point.isVisible!==false;
+    return (!query||text.includes(query))&&
+      (visibility==='todos'||(visibility==='visibles'&&visible)||(visibility==='ocultos'&&!visible));
+  });
+  const rows=matches.map(point=>{
+    const category=CATS[point.cat]||CATS.servicio;
+    const icon=point.icon||category.i||'•';
+    const selected=String(point.id)===String(adminSelectedId)?' selected':'';
+    const hidden=point.isVisible===false?' hidden-point':'';
+    const events=Array.isArray(point.events)?point.events.length:0;
+    return `<button class="admin-point-row${selected}${hidden}" type="button" data-admin-point="${encodeURIComponent(String(point.id))}">
+      <span class="admin-point-icon" style="background:${category.c}">${escapeHTML(icon)}</span>
+      <span class="admin-point-copy"><span class="admin-point-name">${escapeHTML(point.name)}</span><span class="admin-point-meta">${escapeHTML(category.l)} · ${point.isVisible===false?'Oculto':'Visible'}</span></span>
+      ${events?`<span class="admin-point-count">${events} eventos</span>`:''}
+    </button>`;
+  }).join('');
+  adminPointList.innerHTML=(rows||'<div class="admin-empty">No encontramos lugares con ese filtro.</div>')+
+    '<div class="admin-list-footer"><button class="admin-btn primary" id="adminCreatePoint" type="button">＋ Nuevo punto</button></div>';
+  adminPointList.querySelectorAll('[data-admin-point]').forEach(row=>{
+    row.addEventListener('click',()=>selectAdminPoint(decodeURIComponent(row.dataset.adminPoint),true));
+  });
+  document.getElementById('adminCreatePoint').addEventListener('click',createAdminPoint);
+}
+
+function renderAdminInspector(){
+  const point=POIS.find(p=>String(p.id)===String(adminSelectedId));
+  if(!point){adminInspector.innerHTML='<div class="admin-empty">Selecciona un lugar para editarlo y arrastrarlo en el mapa.</div>';return;}
+  const options=Object.entries(CATS).map(([key,value])=>
+    `<option value="${key}"${point.cat===key?' selected':''}>${escapeHTML(value.l)}</option>`).join('');
+  const [latitude,longitude]=base2ll(point.x,point.y);
+  adminInspector.innerHTML=`
+    <div class="admin-inspector-title"><div><h3>${escapeHTML(point.name)}</h3><p>${escapeHTML((CATS[point.cat]||CATS.servicio).l)} · ID ${escapeHTML(point.id)}</p></div></div>
+    <div class="admin-coordinates"><span class="admin-coordinate" id="adminCoordLat">Lat ${latitude.toFixed(6)}</span><span class="admin-coordinate" id="adminCoordLng">Lng ${longitude.toFixed(6)}</span></div>
+    <div class="admin-field"><label for="adminPointName">Nombre del lugar</label><input id="adminPointName" value="${escapeHTML(point.name)}" maxlength="80"></div>
+    <div class="admin-field"><label for="adminPointCategory">Categoría</label><select id="adminPointCategory">${options}</select></div>
+    <div class="admin-switch-row">
+      <label class="admin-check"><input id="adminPointVisible" type="checkbox"${point.isVisible!==false?' checked':''}> Visible</label>
+      <label class="admin-check"><input id="adminPointFeatured" type="checkbox"${point.isFeatured?' checked':''}> Destacado</label>
+    </div>
+    <div class="admin-drag-hint">Mantén y arrastra el marcador en el mapa para colocarlo exactamente. Los cambios se guardan en este dispositivo.</div>
+    <div class="admin-inspector-actions"><button class="admin-btn outline" id="adminUndoMove" type="button">↶ Deshacer posición</button><button class="admin-btn secondary" id="adminShowVisitor" type="button">Vista visitante</button></div>
+    <div id="adminEventSection"></div>`;
+  const savePoint=()=>{
+    try{
+      adminSession.requireCanEdit();
+      adminDocument.updatePoint(point.id,{
+        name:document.getElementById('adminPointName').value,
+        cat:document.getElementById('adminPointCategory').value,
+        isVisible:document.getElementById('adminPointVisible').checked,
+        isFeatured:document.getElementById('adminPointFeatured').checked
+      });
+      syncPoisFromDocument();renderAdminPointList();renderAdminInspector();toast('Lugar guardado');
+    }catch(error){toast(error.message);}
+  };
+  document.getElementById('adminPointName').addEventListener('change',savePoint);
+  document.getElementById('adminPointCategory').addEventListener('change',savePoint);
+  document.getElementById('adminPointVisible').addEventListener('change',savePoint);
+  document.getElementById('adminPointFeatured').addEventListener('change',savePoint);
+  document.getElementById('adminUndoMove').addEventListener('click',()=>{
+    try{
+      adminSession.requireCanEdit();
+      if(adminDocument.undoMove()){syncPoisFromDocument();selectAdminPoint(point.id,false);toast('Posición restaurada');}
+      else toast('No hay movimientos para deshacer');
+    }catch(error){toast(error.message);}
+  });
+  document.getElementById('adminShowVisitor').addEventListener('click',closeAdminPanel);
+  if(typeof renderAdminEvents==='function')renderAdminEvents(point);
+}
+
+function renderAdminEvents(point){
+  const section=document.getElementById('adminEventSection');if(!section)return;
+  const events=Array.isArray(point.events)?point.events:[];
+  const rows=events.map(event=>{
+    const css=event.status==='borrador'?'draft':event.status==='cancelado'?'cancelled':'';
+    const label=event.status==='borrador'?'Borrador':event.status==='cancelado'?'Cancelado':'Publicado';
+    return `<button class="admin-event-item" type="button" data-admin-event="${encodeURIComponent(String(event.id))}">
+      <time>${escapeHTML(event.time)}</time><span class="admin-event-copy"><strong>${escapeHTML(event.title)}</strong><small>Editar evento</small></span><span class="admin-event-state ${css}">${label}</span>
+    </button>`;
+  }).join('');
+  section.innerHTML=`
+    <div class="admin-event-head"><div><h4>Eventos del lugar</h4><span>${events.length} en la programación</span></div><button class="admin-btn primary" id="adminAddEvent" type="button">＋ Evento</button></div>
+    <div class="admin-event-list">${rows||'<div class="admin-empty">Todavía no hay eventos en este lugar.</div>'}</div>
+    <div class="admin-data-tools"><button class="admin-btn outline" id="adminExportJson" type="button">Copiar JSON</button><button class="admin-btn outline" id="adminImportJson" type="button">Importar</button><button class="admin-btn secondary wide" id="adminRestoreBackup" type="button">Restaurar último respaldo</button></div>`;
+  document.getElementById('adminAddEvent').addEventListener('click',()=>openAdminEventEditor(null));
+  section.querySelectorAll('[data-admin-event]').forEach(row=>{
+    row.addEventListener('click',()=>openAdminEventEditor(decodeURIComponent(row.dataset.adminEvent)));
+  });
+  document.getElementById('adminExportJson').addEventListener('click',()=>openAdminJsonModal('export'));
+  document.getElementById('adminImportJson').addEventListener('click',()=>openAdminJsonModal('import'));
+  document.getElementById('adminRestoreBackup').addEventListener('click',restoreAdminBackup);
+}
+
+function openAdminEventEditor(eventId){
+  try{adminSession.requireCanEdit();}catch(error){toast(error.message);return;}
+  const point=POIS.find(p=>String(p.id)===String(adminSelectedId));if(!point)return;
+  const event=eventId==null?null:point.events.find(item=>String(item.id)===String(eventId));
+  document.getElementById('adminEventId').value=event?event.id:'';
+  document.getElementById('adminEventName').value=event?event.title:'';
+  document.getElementById('adminEventTime').value=event?event.time:'15:00';
+  document.getElementById('adminEventStatus').value=event?event.status:'borrador';
+  document.getElementById('adminEventDescription').value=event?event.description||'':'';
+  document.getElementById('adminEventTitle').textContent=event?'Editar evento':'Nuevo evento';
+  document.getElementById('adminEventPlace').textContent=`Programación de ${point.name}`;
+  document.getElementById('adminEventError').textContent='';
+  document.getElementById('adminEventModal').classList.add('open');
+  setTimeout(()=>document.getElementById('adminEventName').focus(),50);
+}
+
+function closeAdminEventEditor(){document.getElementById('adminEventModal').classList.remove('open');}
+
+function openAdminJsonModal(mode){
+  const modal=document.getElementById('adminImportModal');
+  const area=document.getElementById('adminJsonText');
+  const applyButton=document.getElementById('adminJsonApply');
+  document.getElementById('adminJsonError').textContent='';
+  if(mode==='export'){
+    document.getElementById('adminJsonTitle').textContent='Exportar configuración';
+    document.getElementById('adminJsonHelp').textContent='El JSON contiene lugares, coordenadas y eventos. Ya intentamos copiarlo al portapapeles.';
+    area.value=adminDocument.exportJson();area.readOnly=true;applyButton.style.display='none';
+    const fallback=()=>{area.focus();area.select();try{document.execCommand('copy');}catch(_){};};
+    try{const copy=navigator.clipboard&&navigator.clipboard.writeText(area.value);if(copy&&copy.catch)copy.catch(fallback);else fallback();}catch(_){fallback();}
+  }else{
+    document.getElementById('adminJsonTitle').textContent='Importar configuración';
+    document.getElementById('adminJsonHelp').textContent='Pega un respaldo JSON. Se validará completo antes de reemplazar los datos del dispositivo.';
+    area.value='';area.readOnly=false;applyButton.style.display='';setTimeout(()=>area.focus(),50);
+  }
+  modal.dataset.mode=mode;modal.classList.add('open');
+}
+
+function importAdminDocument(){
+  const area=document.getElementById('adminJsonText');
+  const error=document.getElementById('adminJsonError');error.textContent='';
+  if(!area.value.trim()){error.textContent='Pega primero el documento JSON';return;}
+  if(!window.confirm('¿Aplicar este documento? La configuración actual quedará guardada como respaldo.'))return;
+  try{
+    adminSession.requireCanEdit();
+    adminDocument.importJson(area.value);syncPoisFromDocument();adminSelectedId=POIS[0]?.id??null;
+    renderAdminPointList();renderAdminInspector();document.getElementById('adminImportModal').classList.remove('open');toast('Configuración importada y guardada');
+  }catch(importError){error.textContent=importError.message;}
+}
+
+function restoreAdminBackup(){
+  if(!window.confirm('¿Restaurar la configuración anterior guardada en este dispositivo?'))return;
+  try{adminSession.requireCanEdit();adminDocument.restoreBackup();syncPoisFromDocument();renderAdminPointList();renderAdminInspector();toast('Último respaldo restaurado');}
+  catch(error){toast(error.message);}
+}
+
+function createAdminPoint(){
+  const narrow=innerWidth<=700;
+  const cx=innerWidth/2,cy=narrow?innerHeight*.27:innerHeight/2;
+  const x=Math.max(0,Math.min(W,(cx-tx)/sc));
+  const y=Math.max(0,Math.min(H,(cy-ty)/sc));
+  try{
+    adminSession.requireCanEdit();
+    const point=adminDocument.createPoint({name:'Nuevo punto',cat:'servicio',x,y});
+    syncPoisFromDocument();selectAdminPoint(point.id,false);toast('Punto creado · arrástralo al lugar correcto');
+    setTimeout(()=>document.getElementById('adminPointName')?.select(),40);
+  }catch(error){toast(error.message);}
+}
+
+function beginAdminDrag(event,id){
+  if(!adminMode)return;
+  try{adminSession.requireCanEdit();}catch(error){toast(error.message);closeAdminPanel();return;}
+  event.preventDefault();event.stopPropagation();selectAdminPoint(id,false);
+  const point=POIS.find(p=>String(p.id)===String(id));if(!point)return;
+  adminDrag={id:point.id,startX:point.x,startY:point.y,startClientX:event.clientX,startClientY:event.clientY,moved:false};
+  document.body.classList.add('admin-dragging');
+  const move=ev=>{
+    if(!adminDrag||ev.pointerId!==event.pointerId)return;
+    if(Math.hypot(ev.clientX-adminDrag.startClientX,ev.clientY-adminDrag.startClientY)>2)adminDrag.moved=true;
+    point.x=Math.max(0,Math.min(W,(ev.clientX-tx)/sc));
+    point.y=Math.max(0,Math.min(H,(ev.clientY-ty)/sc));
+    const [latitude,longitude]=base2ll(point.x,point.y);
+    const lat=document.getElementById('adminCoordLat'),lng=document.getElementById('adminCoordLng');
+    if(lat)lat.textContent=`Lat ${latitude.toFixed(6)}`;if(lng)lng.textContent=`Lng ${longitude.toFixed(6)}`;
+    renderPins();
+  };
+  const end=ev=>{
+    if(ev.pointerId!==event.pointerId)return;
+    document.removeEventListener('pointermove',move);document.removeEventListener('pointerup',end);document.removeEventListener('pointercancel',end);
+    document.body.classList.remove('admin-dragging');
+    const drag=adminDrag;adminDrag=null;
+    if(drag&&drag.moved){
+      try{adminDocument.movePoint(drag.id,point.x,point.y);syncPoisFromDocument();selectAdminPoint(drag.id,false);toast('Nueva posición guardada');}
+      catch(error){toast(error.message);}
+    }else renderPins();
+  };
+  document.addEventListener('pointermove',move);document.addEventListener('pointerup',end);document.addEventListener('pointercancel',end);
+}
+
+document.getElementById('adminFab').addEventListener('click',openAdminLogin);
+document.getElementById('adminLoginCancel').addEventListener('click',closeAdminLogin);
+document.getElementById('adminClose').addEventListener('click',closeAdminPanel);
+document.getElementById('adminSearch').addEventListener('input',renderAdminPointList);
+document.getElementById('adminVisibilityFilter').addEventListener('change',renderAdminPointList);
+document.getElementById('adminLoginForm').addEventListener('submit',event=>{
+  event.preventDefault();
+  const email=document.getElementById('adminEmail').value,password=document.getElementById('adminPassword').value;
+  if(!adminSession.login(email,password)){
+    document.getElementById('adminLoginError').textContent='Correo o contraseña incorrectos';return;
+  }
+  openAdminPanel();
 });
-document.getElementById('expClose').addEventListener('click',()=>document.getElementById('exportBox').classList.remove('open'));
-document.getElementById('resetBtn').addEventListener('click',()=>{try{localStorage.removeItem('mr_pois');}catch(e){};location.reload();});
+document.getElementById('adminEventCancel').addEventListener('click',closeAdminEventEditor);
+document.getElementById('adminEventForm').addEventListener('submit',event=>{
+  event.preventDefault();
+  const eventId=document.getElementById('adminEventId').value;
+  const input={
+    title:document.getElementById('adminEventName').value,
+    time:document.getElementById('adminEventTime').value,
+    status:document.getElementById('adminEventStatus').value,
+    description:document.getElementById('adminEventDescription').value
+  };
+  try{
+    adminSession.requireCanEdit();
+    if(eventId)adminDocument.updateEvent(adminSelectedId,eventId,input);
+    else adminDocument.addEvent(adminSelectedId,input);
+    syncPoisFromDocument();selectAdminPoint(adminSelectedId,false);closeAdminEventEditor();toast('Evento guardado');
+  }catch(saveError){document.getElementById('adminEventError').textContent=saveError.message;}
+});
+document.getElementById('adminJsonClose').addEventListener('click',()=>document.getElementById('adminImportModal').classList.remove('open'));
+document.getElementById('adminJsonApply').addEventListener('click',importAdminDocument);
 
 /* ============ toast ============ */
 let toastT=null;
@@ -538,7 +863,7 @@ function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t
   clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),2600);}
 
 /* ============ init ============ */
-loadCustom(); buildPins(); fit(); apply();
+adminDocument.load();syncPoisFromDocument(false);buildPins();fit();apply();
 let interacted=false;
 vp.addEventListener('pointerdown',()=>{interacted=true;},{once:true,capture:true});
 vp.addEventListener('wheel',()=>{interacted=true;},{once:true,capture:true});

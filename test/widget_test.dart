@@ -4,6 +4,6 @@ import 'package:park_demo/main.dart';
 void main() {
   testWidgets('App boots', (tester) async {
     await tester.pumpWidget(const MushucRunaApp());
-    expect(find.text('Mushuc Runa'), findsOneWidget);
+    expect(find.text('Tu aventura comienza aquí'), findsOneWidget);
   });
 }

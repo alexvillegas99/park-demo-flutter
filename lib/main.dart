@@ -5,6 +5,10 @@
 
 import 'dart:async';
 import 'dart:convert';
+import 'package:park_demo/account/account_screen.dart';
+import 'package:park_demo/account/account_session.dart';
+import 'package:park_demo/auth/access_flow.dart';
+import 'package:park_demo/design/brand_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
@@ -19,65 +23,24 @@ void main() {
   runApp(const MushucRunaApp());
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// TEMA — Verde principal + accents (base imagen 2)
-// ═══════════════════════════════════════════════════════════════════════════
-class AppColors {
-  static const primary = Color(0xFF7A1315);
-  static const primaryDk = Color(0xFF9A1B1E);
-  static const primaryDeep = Color(0xFF56090B);
-  static const primarySoft = Color(0xFFFBEED3);
-  static const gold = Color(0xFFE2B563);
-  static const goldDk = Color(0xFFC08A3E);
-  static const coral = Color(0xFFB24A22);
-  static const orange = Color(0xFFD97B2B);
-  static const yellow = gold;
-  static const ink = Color(0xFF33201A);
-  static const inkSoft = Color(0xFF8A6F5E);
-  static const line = Color(0xFFF0E4CC);
-  static const surface = Color(0xFFFAF3E6);
-  static const cardBg = Color(0xFFFFFFFF);
-  static const mapGreen = Color(0xFF2F6B2B);
-}
-
 class MushucRunaApp extends StatelessWidget {
-  const MushucRunaApp({super.key});
+  final Widget Function(bool active)? mapScreenBuilder;
+
+  const MushucRunaApp({super.key, this.mapScreenBuilder});
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Expo Feria Mushuc Runa',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-        scaffoldBackgroundColor: AppColors.surface,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: AppColors.primary,
-          primary: AppColors.primary,
-        ),
-        fontFamily: 'System',
-        textTheme: const TextTheme(
-          displayLarge: TextStyle(
-            fontWeight: FontWeight.w900,
-            letterSpacing: -1.5,
-            color: AppColors.ink,
-          ),
-          headlineLarge: TextStyle(
-            fontWeight: FontWeight.w900,
-            letterSpacing: -1,
-            color: AppColors.ink,
-          ),
-          titleLarge: TextStyle(
-            fontWeight: FontWeight.w800,
-            color: AppColors.ink,
-          ),
-          titleMedium: TextStyle(
-            fontWeight: FontWeight.w700,
-            color: AppColors.ink,
-          ),
-          bodyMedium: TextStyle(color: AppColors.ink),
+      theme: AppTheme.light(),
+      home: AccessGate(
+        appBuilder: (session, onSignOut, onDeleteLocalAccount) => RootShell(
+          session: session,
+          onSignOut: onSignOut,
+          onDeleteLocalAccount: onDeleteLocalAccount,
+          mapScreenBuilder: mapScreenBuilder,
         ),
       ),
-      home: const RootShell(),
     );
   }
 }
@@ -1096,7 +1059,18 @@ const kRestaurants = <Restaurant>[
 // ROOT SHELL — 5 tabs
 // ═══════════════════════════════════════════════════════════════════════════
 class RootShell extends StatefulWidget {
-  const RootShell({super.key});
+  final AccessSession session;
+  final VoidCallback onSignOut;
+  final VoidCallback onDeleteLocalAccount;
+  final Widget Function(bool active)? mapScreenBuilder;
+
+  const RootShell({
+    super.key,
+    required this.session,
+    required this.onSignOut,
+    required this.onDeleteLocalAccount,
+    this.mapScreenBuilder,
+  });
   @override
   State<RootShell> createState() => _RootShellState();
 }
@@ -1108,12 +1082,22 @@ class _RootShellState extends State<RootShell> {
   @override
   void initState() {
     super.initState();
-    _screens = <Widget?>[_screenFor(0), null, null, null];
+    _screens = <Widget?>[
+      _screenFor(0),
+      _buildMapScreen(active: false),
+      null,
+      null,
+    ];
   }
 
   void _selectTab(int tab) {
     _screens[tab] ??= _screenFor(tab);
+    _screens[1] = _buildMapScreen(active: tab == 1);
     setState(() => _tab = tab);
+  }
+
+  Widget _buildMapScreen({required bool active}) {
+    return widget.mapScreenBuilder?.call(active) ?? MapScreen(active: active);
   }
 
   void _openRuni() {
@@ -1127,8 +1111,31 @@ class _RootShellState extends State<RootShell> {
     );
   }
 
+  void _openAccount() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => AccountScreen(
+          session: widget.session,
+          onSignOut: () {
+            Navigator.of(context).popUntil((route) => route.isFirst);
+            widget.onSignOut();
+          },
+          onDeleteLocalAccount: () {
+            Navigator.of(context).popUntil((route) => route.isFirst);
+            widget.onDeleteLocalAccount();
+          },
+        ),
+      ),
+    );
+  }
+
   Widget _screenFor(int tab) => switch (tab) {
-    0 => HomeScreen(onOpenPackages: () => _selectTab(2), onOpenRuni: _openRuni),
+    0 => HomeScreen(
+      displayName: widget.session.displayName,
+      onOpenPackages: () => _selectTab(2),
+      onOpenRuni: _openRuni,
+      onOpenAccount: _openAccount,
+    ),
     1 => const MapScreen(),
     2 => const PackagesScreen(),
     _ => const FoodScreen(),
@@ -2415,10 +2422,18 @@ class _StatsCard extends StatelessWidget {
 }
 
 class HomeScreen extends StatelessWidget {
+  final String displayName;
   final VoidCallback? onOpenPackages;
   final VoidCallback? onOpenRuni;
+  final VoidCallback? onOpenAccount;
 
-  const HomeScreen({super.key, this.onOpenPackages, this.onOpenRuni});
+  const HomeScreen({
+    super.key,
+    required this.displayName,
+    this.onOpenPackages,
+    this.onOpenRuni,
+    this.onOpenAccount,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -2459,11 +2474,11 @@ class HomeScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const _MrHeader(),
+              _MrHeader(onAccount: onOpenAccount),
               const SizedBox(height: 24),
-              const Text(
-                '¡Hola, familia!',
-                style: TextStyle(
+              Text(
+                '¡Hola, ${displayName.trim()}!',
+                style: const TextStyle(
                   color: AppColors.ink,
                   fontSize: 29,
                   height: 1.05,
@@ -2713,7 +2728,9 @@ class HomeScreen extends StatelessWidget {
 }
 
 class _MrHeader extends StatelessWidget {
-  const _MrHeader();
+  const _MrHeader({this.onAccount});
+
+  final VoidCallback? onAccount;
 
   @override
   Widget build(BuildContext context) {
@@ -2737,17 +2754,16 @@ class _MrHeader extends StatelessWidget {
             ],
           ),
           alignment: Alignment.center,
-          child: const Text(
+          child: Text(
             'MR',
-            style: TextStyle(
+            style: BrandType.wordmark.copyWith(
               color: AppColors.gold,
-              fontWeight: FontWeight.w900,
               fontSize: 15,
             ),
           ),
         ),
         const SizedBox(width: 12),
-        const Expanded(
+        Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -2755,36 +2771,36 @@ class _MrHeader extends StatelessWidget {
                 'COMPLEJO INTERCULTURAL Y DEPORTIVO',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(
+                style: BrandType.institutional.copyWith(
                   color: AppColors.goldDk,
                   fontSize: 8.5,
-                  fontWeight: FontWeight.w900,
                   letterSpacing: 1.15,
                 ),
               ),
               Text(
                 'Mushuc Runa',
-                style: TextStyle(
+                style: BrandType.wordmark.copyWith(
                   color: AppColors.primary,
                   fontSize: 21,
                   height: 1.05,
-                  fontWeight: FontWeight.w900,
                 ),
               ),
             ],
           ),
         ),
-        Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            shape: BoxShape.circle,
-            border: Border.all(color: AppColors.gold, width: 2),
+        Material(
+          color: Colors.white,
+          shape: const CircleBorder(
+            side: BorderSide(color: AppColors.gold, width: 2),
           ),
-          child: const Icon(
-            Icons.family_restroom_rounded,
-            color: AppColors.primary,
+          child: IconButton(
+            key: const Key('account-button'),
+            tooltip: 'Abrir cuenta y privacidad',
+            onPressed: onAccount,
+            icon: const Icon(
+              Icons.account_circle_outlined,
+              color: AppColors.primary,
+            ),
           ),
         ),
       ],
@@ -2948,6 +2964,14 @@ class _HomeStat extends StatelessWidget {
 // ═══════════════════════════════════════════════════════════════════════════
 // MAP — Mapa ilustrado del recinto ferial
 // ═══════════════════════════════════════════════════════════════════════════
+class MapExperienceConfig {
+  const MapExperienceConfig._();
+
+  static const bool bundledMapFirst = true;
+  static const bool remoteFontsEnabled = false;
+  static const String demoAdminEmail = 'admin@mushucruna.demo';
+}
+
 class FairLocation {
   const FairLocation._();
 
@@ -2955,10 +2979,20 @@ class FairLocation {
   static const double latitude = -1.3690877425784418;
   static const double longitude = -78.647792380582;
   static const double radiusMeters = 900;
+  static const LocationSettings initialLocationSettings = LocationSettings(
+    accuracy: LocationAccuracy.bestForNavigation,
+  );
+  static const LocationSettings trackingLocationSettings = LocationSettings(
+    accuracy: LocationAccuracy.bestForNavigation,
+    distanceFilter: 1,
+  );
 }
 
 class MapScreen extends StatefulWidget {
-  const MapScreen({super.key});
+  final bool active;
+
+  const MapScreen({super.key, this.active = true});
+
   @override
   State<MapScreen> createState() => _MapScreenState();
 }
@@ -2966,6 +3000,8 @@ class MapScreen extends StatefulWidget {
 class _MapScreenState extends State<MapScreen> {
   late final WebViewController _wc;
   bool _loading = true;
+  bool _pageReady = false;
+  bool _gpsStarted = false;
   bool _promptingMaps = false;
   StreamSubscription<Position>? _posSub;
 
@@ -3024,12 +3060,27 @@ class _MapScreenState extends State<MapScreen> {
           onPageStarted: (_) => _wc.runJavaScript(_geoBridge),
           onPageFinished: (_) async {
             await _wc.runJavaScript(_geoBridge);
-            await _wc.runJavaScript('startGPS();');
+            _pageReady = true;
+            await _startGpsWhenVisible();
             if (mounted) setState(() => _loading = false);
           },
         ),
       )
       ..loadFlutterAsset('assets/map/index.html');
+  }
+
+  @override
+  void didUpdateWidget(covariant MapScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!oldWidget.active && widget.active) {
+      _startGpsWhenVisible();
+    }
+  }
+
+  Future<void> _startGpsWhenVisible() async {
+    if (!widget.active || !_pageReady || _gpsStarted) return;
+    _gpsStarted = true;
+    await _wc.runJavaScript('startGPS();');
   }
 
   @override
@@ -3063,9 +3114,7 @@ class _MapScreenState extends State<MapScreen> {
     }
     try {
       final p = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.high,
-        ),
+        locationSettings: FairLocation.initialLocationSettings,
       );
       final distMeters = Geolocator.distanceBetween(
         p.latitude,
@@ -3089,10 +3138,7 @@ class _MapScreenState extends State<MapScreen> {
         _posSub?.cancel();
         _posSub =
             Geolocator.getPositionStream(
-              locationSettings: const LocationSettings(
-                accuracy: LocationAccuracy.high,
-                distanceFilter: 3,
-              ),
+              locationSettings: FairLocation.trackingLocationSettings,
             ).listen((p) {
               final d = Geolocator.distanceBetween(
                 p.latitude,
@@ -3183,22 +3229,7 @@ class _MapScreenState extends State<MapScreen> {
         padding: EdgeInsets.only(top: topPad, bottom: bottomNavGap),
         child: Stack(
           children: [
-            Positioned.fill(
-              child: Image.asset(
-                'assets/fair_map.png',
-                fit: BoxFit.cover,
-                alignment: Alignment.center,
-                filterQuality: FilterQuality.low,
-              ),
-            ),
-            Positioned.fill(
-              child: AnimatedOpacity(
-                opacity: _loading ? 0 : 1,
-                duration: const Duration(milliseconds: 260),
-                curve: Curves.easeOut,
-                child: WebViewWidget(controller: _wc),
-              ),
-            ),
+            Positioned.fill(child: WebViewWidget(controller: _wc)),
             if (_loading)
               Positioned(
                 left: 20,

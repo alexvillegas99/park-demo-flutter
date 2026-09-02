@@ -7,10 +7,12 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidget(
-      const MaterialApp(home: Scaffold(body: HomeScreen())),
+      const MaterialApp(
+        home: Scaffold(body: HomeScreen(displayName: 'Familia')),
+      ),
     );
 
-    expect(find.text('¡Hola, familia!'), findsOneWidget);
+    expect(find.text('¡Hola, Familia!'), findsOneWidget);
     expect(find.text('Atracciones populares'), findsOneWidget);
     expect(find.textContaining('2x1 en el paquete'), findsOneWidget);
     expect(find.text('Ver paquetes'), findsOneWidget);
@@ -20,7 +22,9 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidget(
-      const MaterialApp(home: Scaffold(body: HomeScreen())),
+      const MaterialApp(
+        home: Scaffold(body: HomeScreen(displayName: 'Familia')),
+      ),
     );
 
     final assetNames = tester

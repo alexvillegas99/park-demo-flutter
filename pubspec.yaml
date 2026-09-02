@@ -63,6 +63,8 @@ flutter:
   assets:
     - assets/fair_map.png
     - assets/map/index.html
+    - assets/map/admin_editor.css
+    - assets/map/admin_editor.js
     - assets/map/map_filter.js
     - assets/attractions/
 
