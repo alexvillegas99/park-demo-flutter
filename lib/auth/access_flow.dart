@@ -19,10 +19,14 @@ class AccessGate extends StatefulWidget {
 }
 
 class _AccessGateState extends State<AccessGate> {
+  // Credenciales demo pre-cargadas para revisión de App Store / Play Store.
+  static const String _demoEmail = 'avillegas7510@gmail.com';
+  static const String _demoPassword = '12345678';
+
   final _loginFormKey = GlobalKey<FormState>();
   final _registerFormKey = GlobalKey<FormState>();
-  final _loginEmail = TextEditingController();
-  final _loginPassword = TextEditingController();
+  final _loginEmail = TextEditingController(text: _demoEmail);
+  final _loginPassword = TextEditingController(text: _demoPassword);
   final _registerName = TextEditingController();
   final _registerEmail = TextEditingController();
   final _registerPassword = TextEditingController();
@@ -480,34 +484,36 @@ class _LoginView extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 18),
-              OutlinedButton(
-                key: const Key('google-access'),
-                onPressed: onGoogle,
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: _AccessColors.ink,
-                  side: const BorderSide(color: _AccessColors.line, width: 1.5),
-                  minimumSize: const Size.fromHeight(54),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(17),
-                  ),
-                ),
-                child: const Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    _GoogleMark(),
-                    SizedBox(width: 11),
-                    Flexible(
-                      child: Text(
-                        'Continuar con Google',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontWeight: FontWeight.w800),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const _OrDivider(),
+              // Login con Google deshabilitado temporalmente (pendiente configurar
+              // OAuth para App Store / Play Store). Descomenta cuando esté listo.
+              // OutlinedButton(
+              //   key: const Key('google-access'),
+              //   onPressed: onGoogle,
+              //   style: OutlinedButton.styleFrom(
+              //     foregroundColor: _AccessColors.ink,
+              //     side: const BorderSide(color: _AccessColors.line, width: 1.5),
+              //     minimumSize: const Size.fromHeight(54),
+              //     shape: RoundedRectangleBorder(
+              //       borderRadius: BorderRadius.circular(17),
+              //     ),
+              //   ),
+              //   child: const Row(
+              //     mainAxisAlignment: MainAxisAlignment.center,
+              //     children: [
+              //       _GoogleMark(),
+              //       SizedBox(width: 11),
+              //       Flexible(
+              //         child: Text(
+              //           'Continuar con Google',
+              //           maxLines: 1,
+              //           overflow: TextOverflow.ellipsis,
+              //           style: TextStyle(fontWeight: FontWeight.w800),
+              //         ),
+              //       ),
+              //     ],
+              //   ),
+              // ),
+              // const _OrDivider(),
               _AccessField(
                 key: const Key('login-email'),
                 controller: emailController,
