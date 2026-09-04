@@ -1,5 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:park_demo/account/account_session.dart';
+import 'package:park_demo/api/api_client.dart';
+import 'package:park_demo/api/data_store.dart';
 import 'package:park_demo/design/brand_theme.dart';
 
 enum AccessStage { login, register, onboarding, app }
@@ -39,6 +43,8 @@ class _AccessGateState extends State<AccessGate> {
   AccessProvider _pendingProvider = AccessProvider.local;
   AccessSession? _session;
   String? _accessNotice;
+  String? _accessError;
+  bool _busy = false;
   int _question = 0;
   final Set<String> _visitReasons = <String>{};
   String? _visitFrequency;
@@ -76,43 +82,118 @@ class _AccessGateState extends State<AccessGate> {
     });
   }
 
-  void _submitLogin() {
+  Future<void> _submitLogin() async {
     FocusManager.instance.primaryFocus?.unfocus();
     if (!(_loginFormKey.currentState?.validate() ?? false)) return;
+    if (_busy) return;
     setState(() {
-      _displayName = _nameFromEmail(_loginEmail.text);
-      _session = AccessSession(
-        displayName: _displayName,
-        email: _loginEmail.text.trim(),
-        provider: AccessProvider.local,
-      );
+      _busy = true;
+      _accessError = null;
       _accessNotice = null;
-      _stage = AccessStage.app;
     });
+    try {
+      final result = await ApiClient.instance.appLogin(
+        email: _loginEmail.text.trim(),
+        password: _loginPassword.text,
+      );
+      // Kick off data fetch in the background — the app boots even if it fails.
+      unawaited(DataStore.instance.refresh());
+      if (!mounted) return;
+      final resolvedName = result.user.displayName.isNotEmpty
+          ? _firstName(result.user.displayName)
+          : _nameFromEmail(result.user.email.isNotEmpty
+              ? result.user.email
+              : _loginEmail.text);
+      setState(() {
+        _displayName = resolvedName;
+        _session = AccessSession(
+          displayName: _displayName,
+          email: result.user.email.isNotEmpty
+              ? result.user.email
+              : _loginEmail.text.trim(),
+          provider: AccessProvider.local,
+        );
+        _busy = false;
+        _stage = AccessStage.app;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _busy = false;
+        _accessError = _friendlyError(e);
+      });
+    }
   }
 
-  void _continueAsGuest() {
+  Future<void> _continueAsGuest() async {
     FocusManager.instance.primaryFocus?.unfocus();
+    if (_busy) return;
+    setState(() {
+      _busy = true;
+      _accessError = null;
+    });
+    try {
+      await ApiClient.instance.guest(displayName: 'Visitante');
+    } catch (_) {
+      // Sesión anónima local si la API no responde — no bloqueamos el ingreso.
+    }
+    unawaited(DataStore.instance.refresh());
+    if (!mounted) return;
     setState(() {
       _session = const AccessSession.guest();
       _displayName = _session!.displayName;
       _accessNotice = null;
+      _busy = false;
       _stage = AccessStage.app;
     });
   }
 
-  void _submitRegister() {
+  Future<void> _submitRegister() async {
     FocusManager.instance.primaryFocus?.unfocus();
     if (!(_registerFormKey.currentState?.validate() ?? false)) return;
+    if (_busy) return;
     setState(() {
-      _displayName = _firstName(_registerName.text);
-      _pendingEmail = _registerEmail.text.trim();
-      _pendingProvider = AccessProvider.local;
-      _accessNotice = null;
-      _onboardingOrigin = AccessStage.register;
-      _resetAnswers();
-      _stage = AccessStage.onboarding;
+      _busy = true;
+      _accessError = null;
     });
+    try {
+      final result = await ApiClient.instance.register(
+        email: _registerEmail.text.trim(),
+        password: _registerPassword.text,
+        displayName: _registerName.text.trim(),
+      );
+      unawaited(DataStore.instance.refresh());
+      if (!mounted) return;
+      setState(() {
+        _displayName = result.user.displayName.isNotEmpty
+            ? _firstName(result.user.displayName)
+            : _firstName(_registerName.text);
+        _pendingEmail = result.user.email.isNotEmpty
+            ? result.user.email
+            : _registerEmail.text.trim();
+        _pendingProvider = AccessProvider.local;
+        _accessNotice = null;
+        _busy = false;
+        _onboardingOrigin = AccessStage.register;
+        _resetAnswers();
+        _stage = AccessStage.onboarding;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _busy = false;
+        _accessError = _friendlyError(e);
+      });
+    }
+  }
+
+  String _friendlyError(Object e) {
+    if (e is ApiException) {
+      if (e.statusCode == 401) return 'Credenciales inválidas';
+      if (e.statusCode == 409) return 'Ese correo ya está registrado';
+      return e.message;
+    }
+    return 'No pudimos conectarnos. Intenta de nuevo.';
   }
 
   void _resetAnswers() {
@@ -191,6 +272,7 @@ class _AccessGateState extends State<AccessGate> {
     _registerEmail.clear();
     _registerPassword.clear();
     _registerConfirm.clear();
+    unawaited(ApiClient.instance.signOut());
     setState(() {
       _session = null;
       _displayName = 'Visitante';
@@ -200,6 +282,8 @@ class _AccessGateState extends State<AccessGate> {
       _accessNotice = deleted
           ? 'Cuenta y datos locales eliminados'
           : 'Sesión cerrada correctamente';
+      _accessError = null;
+      _busy = false;
       _stage = AccessStage.login;
     });
   }
@@ -233,6 +317,8 @@ class _AccessGateState extends State<AccessGate> {
         onGuest: _continueAsGuest,
         onCreateAccount: _openRegister,
         notice: _accessNotice,
+        errorMessage: _accessError,
+        busy: _busy,
       ),
       AccessStage.register => _RegisterView(
         key: const ValueKey('register-view'),
@@ -241,8 +327,13 @@ class _AccessGateState extends State<AccessGate> {
         emailController: _registerEmail,
         passwordController: _registerPassword,
         confirmController: _registerConfirm,
-        onBack: () => setState(() => _stage = AccessStage.login),
+        onBack: () => setState(() {
+          _stage = AccessStage.login;
+          _accessError = null;
+        }),
         onSubmit: _submitRegister,
+        errorMessage: _accessError,
+        busy: _busy,
       ),
       AccessStage.onboarding => _OnboardingView(
         key: const ValueKey('onboarding-view'),
@@ -402,6 +493,8 @@ class _LoginView extends StatelessWidget {
     required this.onGuest,
     required this.onCreateAccount,
     required this.notice,
+    required this.errorMessage,
+    required this.busy,
   });
 
   final GlobalKey<FormState> formKey;
@@ -412,6 +505,8 @@ class _LoginView extends StatelessWidget {
   final VoidCallback onGuest;
   final VoidCallback onCreateAccount;
   final String? notice;
+  final String? errorMessage;
+  final bool busy;
 
   @override
   Widget build(BuildContext context) {
@@ -452,6 +547,43 @@ class _LoginView extends StatelessWidget {
                           notice!,
                           style: const TextStyle(
                             color: AppColors.ink,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
+              if (errorMessage != null) ...[
+                Container(
+                  key: const Key('access-error'),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 11,
+                  ),
+                  decoration: BoxDecoration(
+                    color: _AccessColors.wine.withValues(alpha: .1),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: _AccessColors.wine.withValues(alpha: .3),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.error_outline_rounded,
+                        color: _AccessColors.wine,
+                        size: 19,
+                      ),
+                      const SizedBox(width: 9),
+                      Expanded(
+                        child: Text(
+                          errorMessage!,
+                          style: const TextStyle(
+                            color: _AccessColors.wine,
                             fontWeight: FontWeight.w700,
                             fontSize: 12,
                           ),
@@ -537,9 +669,18 @@ class _LoginView extends StatelessWidget {
               const SizedBox(height: 16),
               FilledButton(
                 key: const Key('login-submit'),
-                onPressed: onLogin,
+                onPressed: busy ? null : onLogin,
                 style: _primaryButtonStyle(),
-                child: const Text('Iniciar sesión'),
+                child: busy
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.4,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Text('Iniciar sesión'),
               ),
               const SizedBox(height: 8),
               TextButton(
@@ -563,7 +704,7 @@ class _LoginView extends StatelessWidget {
               ),
               OutlinedButton.icon(
                 key: const Key('guest-access'),
-                onPressed: onGuest,
+                onPressed: busy ? null : onGuest,
                 style: OutlinedButton.styleFrom(
                   foregroundColor: _AccessColors.wine,
                   side: BorderSide(
@@ -705,6 +846,8 @@ class _RegisterView extends StatelessWidget {
     required this.confirmController,
     required this.onBack,
     required this.onSubmit,
+    required this.errorMessage,
+    required this.busy,
   });
 
   final GlobalKey<FormState> formKey;
@@ -714,6 +857,8 @@ class _RegisterView extends StatelessWidget {
   final TextEditingController confirmController;
   final VoidCallback onBack;
   final VoidCallback onSubmit;
+  final String? errorMessage;
+  final bool busy;
 
   @override
   Widget build(BuildContext context) {
@@ -828,12 +973,58 @@ class _RegisterView extends StatelessWidget {
                 },
                 onFieldSubmitted: (_) => onSubmit(),
               ),
+              if (errorMessage != null) ...[
+                const SizedBox(height: 14),
+                Container(
+                  key: const Key('register-error'),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 11,
+                  ),
+                  decoration: BoxDecoration(
+                    color: _AccessColors.wine.withValues(alpha: .1),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: _AccessColors.wine.withValues(alpha: .3),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.error_outline_rounded,
+                        color: _AccessColors.wine,
+                        size: 19,
+                      ),
+                      const SizedBox(width: 9),
+                      Expanded(
+                        child: Text(
+                          errorMessage!,
+                          style: const TextStyle(
+                            color: _AccessColors.wine,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
               const SizedBox(height: 18),
               FilledButton(
                 key: const Key('register-submit'),
-                onPressed: onSubmit,
+                onPressed: busy ? null : onSubmit,
                 style: _primaryButtonStyle(),
-                child: const Text('Crear cuenta y continuar'),
+                child: busy
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.4,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Text('Crear cuenta y continuar'),
               ),
               const Spacer(),
               const SizedBox(height: 18),
