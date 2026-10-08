@@ -468,21 +468,33 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
     );
   }
 
-  List<Map<String, String>> _programmingFor(MapPlace place) {
+  List<MapVenueProgrammingDay> _programmingFor(MapPlace place) {
     final venue = place.venue;
-    if (venue == null) return const <Map<String, String>>[];
+    if (venue == null) return const <MapVenueProgrammingDay>[];
     final days = widget.programming.toJsonList();
-    if (days.isEmpty) return const <Map<String, String>>[];
-    final raw = days.first[venue];
-    if (raw is! List) return const <Map<String, String>>[];
-    return raw
-        .whereType<Map>()
-        .map(
-          (event) => <String, String>{
-            'time': '${event['time'] ?? ''}',
-            'title': '${event['title'] ?? ''}',
-          },
-        )
+    if (days.isEmpty) return const <MapVenueProgrammingDay>[];
+    return days
+        .map((day) {
+          final raw = day[venue];
+          final events = raw is List
+              ? raw
+                    .whereType<Map>()
+                    .map(
+                      (event) => <String, String>{
+                        'time': '${event['time'] ?? ''}',
+                        'title': '${event['title'] ?? ''}',
+                      },
+                    )
+                    .toList(growable: false)
+              : const <Map<String, String>>[];
+          return MapVenueProgrammingDay(
+            weekday: '${day['weekday'] ?? ''}',
+            day: '${day['day'] ?? ''}',
+            month: '${day['month'] ?? ''}',
+            fullDate: '${day['fullDate'] ?? ''}',
+            events: events,
+          );
+        })
         .toList(growable: false);
   }
 
@@ -521,7 +533,7 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
             ),
             if (!state.online)
               Positioned(
-                top: top + 108,
+                top: top + MapSearchFilters.overlayHeight + 8,
                 left: 18,
                 right: 18,
                 child: _OfflineBanner(onRetry: _checkConnectivity),
@@ -529,7 +541,7 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
             if (widget.session.isAdmin)
               Positioned(
                 key: const Key('map-admin-button'),
-                top: top + 110,
+                top: top + MapSearchFilters.overlayHeight + 8,
                 right: 14,
                 child: FloatingActionButton.small(
                   heroTag: 'map-admin',
@@ -566,7 +578,7 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
                 bottom: 12,
                 child: MapPlaceSheet(
                   place: selected,
-                  programming: _programmingFor(selected),
+                  programmingDays: _programmingFor(selected),
                   onClose: () => _controller.selectPlace(null),
                   onNavigate: _startRoute,
                 ),
