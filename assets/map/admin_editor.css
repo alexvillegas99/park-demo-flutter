@@ -50,6 +50,7 @@
 .admin-inspector-title{display:flex;align-items:flex-start;gap:8px}
 .admin-inspector-title h3{font-size:14px;color:var(--ink);font-weight:900}
 .admin-inspector-title p{margin-top:2px;color:var(--ink2);font-size:9px;font-weight:800}
+.admin-review-warning{margin-top:8px;padding:8px 10px;border:1px solid #D9A52E;border-radius:11px;background:#FFF5D7;color:#7A4D0A;font-size:9px;font-weight:900;line-height:1.35}
 .admin-coordinates{display:flex;gap:6px;margin-top:9px}
 .admin-coordinate{flex:1;padding:7px 8px;border-radius:11px;background:#F4EDD9;color:var(--gold-deep);font-size:8.5px;font-weight:900}
 .admin-switch-row{display:flex;gap:10px;margin-top:10px}
@@ -62,6 +63,10 @@
 .admin-event-head span{color:var(--ink2);font-size:8.5px;font-weight:800}
 .admin-event-head button{margin-left:auto;padding:7px 9px}
 .admin-event-list{display:grid;gap:6px;margin-top:8px}
+.admin-program-days{display:flex;gap:5px;overflow-x:auto;margin-top:10px;padding:2px 0 4px;scrollbar-width:none}
+.admin-program-days::-webkit-scrollbar{display:none}
+.admin-program-days .program-day{flex:1;min-width:48px}
+.admin-program-date{margin-top:7px;color:var(--gold-deep);font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.04em}
 .admin-event-item{width:100%;display:grid;grid-template-columns:43px 1fr auto;align-items:center;gap:7px;padding:8px;border:1px solid var(--line);border-radius:12px;background:#FAF7EF;color:var(--ink);text-align:left;cursor:pointer}
 .admin-event-item time{color:var(--gold-deep);font-size:9px;font-weight:900}
 .admin-event-copy{min-width:0}

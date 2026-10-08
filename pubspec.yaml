@@ -37,6 +37,8 @@ dependencies:
   webview_flutter: ^4.10.0
   geolocator: ^14.0.2
   url_launcher: ^6.3.1
+  google_maps_flutter: ^2.18.1
+  shared_preferences: ^2.5.6
 
 dev_dependencies:
   flutter_test:
@@ -61,11 +63,8 @@ flutter:
   uses-material-design: true
 
   assets:
-    - assets/fair_map.png
-    - assets/map/index.html
-    - assets/map/admin_editor.css
-    - assets/map/admin_editor.js
-    - assets/map/map_filter.js
+    - assets/map/map_document_v4.json
+    - assets/map/route_graph_v2.json
     - assets/attractions/
 
   # An image asset can refer to one or more resolution-specific "variants", see

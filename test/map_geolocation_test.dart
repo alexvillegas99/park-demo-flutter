@@ -1,11 +1,12 @@
 import 'package:geolocator/geolocator.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:park_demo/main.dart';
+import 'package:park_demo/map/map_location_controller.dart';
+import 'package:park_demo/map/map_runtime_config.dart';
+import 'package:park_demo/map/map_screen.dart';
 
 void main() {
-  test('el mapa usa primero el recurso offline incluido', () {
-    expect(MapExperienceConfig.bundledMapFirst, isTrue);
-    expect(MapExperienceConfig.remoteFontsEnabled, isFalse);
+  test('el mapa exige confirmar una clave local para montar Google Maps', () {
+    expect(MapRuntimeConfig.mapsConfigured, isFalse);
   });
 
   test('la geocerca coincide con el centro del plano de la feria', () {
@@ -14,18 +15,11 @@ void main() {
     expect(FairLocation.radiusMeters, greaterThanOrEqualTo(850));
   });
 
-  test('la lectura inicial solicita precisión apta para navegación', () {
-    expect(
-      FairLocation.initialLocationSettings.accuracy,
-      LocationAccuracy.bestForNavigation,
-    );
-  });
-
   test('el seguimiento publica movimientos desde un metro', () {
     expect(
-      FairLocation.trackingLocationSettings.accuracy,
+      GeolocatorMapPositionSource.trackingSettings.accuracy,
       LocationAccuracy.bestForNavigation,
     );
-    expect(FairLocation.trackingLocationSettings.distanceFilter, 1);
+    expect(GeolocatorMapPositionSource.trackingSettings.distanceFilter, 1);
   });
 }

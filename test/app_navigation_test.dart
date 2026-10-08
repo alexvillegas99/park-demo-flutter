@@ -20,15 +20,16 @@ Widget _testRootShell({Widget Function(bool active)? mapScreenBuilder}) {
 }
 
 void main() {
-  testWidgets('la navegación expone las cuatro áreas y la acción Runi', (
+  testWidgets('la navegación expone Inicio, Mapa, Programación y Runi', (
     tester,
   ) async {
     await tester.pumpWidget(_testRootShell());
 
     expect(find.text('Inicio'), findsOneWidget);
     expect(find.text('Mapa'), findsOneWidget);
-    expect(find.text('Paquetes'), findsOneWidget);
-    expect(find.text('Comida'), findsOneWidget);
+    expect(find.text('Paquetes'), findsNothing);
+    expect(find.text('Comida'), findsNothing);
+    expect(find.text('Programación'), findsOneWidget);
     expect(find.byKey(const Key('runi-nav-button')), findsOneWidget);
   });
 
@@ -95,7 +96,7 @@ void main() {
     await tester.pumpAndSettle();
     final scrolledTop = tester.getTopLeft(popular).dy;
 
-    await tester.tap(find.text('Paquetes'));
+    await tester.tap(find.text('Mapa'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Inicio'));
     await tester.pumpAndSettle();

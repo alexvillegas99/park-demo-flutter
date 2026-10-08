@@ -13,9 +13,11 @@ const {
   MapViewModel,
   MapMarkerIcons,
   LocationStatusModel,
+  MapProgrammingModel,
 } = browserContext;
 
 assert.equal(typeof MapFilterModel, 'function');
+assert.equal(typeof MapProgrammingModel, 'function');
 
 const points = [
   { id: 1, cat: 'evento', name: 'Mega Escenario' },
@@ -48,16 +50,21 @@ assert.deepEqual(
   [1],
 );
 
-const view = new MapViewModel(1900, 1018);
-const fitted = view.fit(440, 760);
-assert.ok(fitted.scaledWidth >= 440);
-assert.ok(fitted.scaledHeight >= 760);
+const view = new MapViewModel(1600, 1327);
+const fitted = view.fit(430, 932, 'contain');
+assert.ok(fitted.scaledWidth <= 430);
+assert.ok(fitted.scaledHeight <= 932);
+assert.equal(fitted.x, 0);
+assert.ok(fitted.y > 0);
 assert.ok(fitted.overlayOpacity >= 0.75);
-assert.equal(view.zoom(fitted.scale, 0.1, 440, 760), fitted.scale);
-assert.equal(view.clamp(500, fitted.scaledWidth, 440), 0);
+const filled = view.fit(430, 932, 'fill');
+assert.ok(filled.scaledWidth >= 430);
+assert.ok(filled.scaledHeight >= 932);
+assert.equal(view.zoom(fitted.scale, 0.1, 430, 932), fitted.scale);
+assert.equal(view.clamp(500, 800, 430, 48), 48);
 assert.equal(
-  view.clamp(-5000, fitted.scaledWidth, 440),
-  440 - fitted.scaledWidth,
+  view.clamp(-5000, 800, 430, 48),
+  430 - 800 - 48,
 );
 
 const accessIcon = MapMarkerIcons.forCategory('acceso');
@@ -87,5 +94,83 @@ assert.deepEqual(plain(locationStatus.view('outside')), {
   active: false,
   markerVisible: false,
 });
+
+class MemoryStorage {
+  constructor() {
+    this.values = new Map();
+  }
+
+  getItem(key) {
+    return this.values.has(key) ? this.values.get(key) : null;
+  }
+
+  setItem(key, value) {
+    this.values.set(key, String(value));
+  }
+}
+
+const programmingDays = [
+  {
+    weekday: 'VIE',
+    day: '30',
+    month: 'OCT',
+    fullDate: 'Viernes 30 de octubre',
+    sol: [{ time: '12:00', title: 'Inauguración' }],
+    luna: [],
+    mega: [{ time: '18:00', title: 'Grupo Bodega' }],
+  },
+  {
+    weekday: 'DOM',
+    day: '01',
+    month: 'NOV',
+    fullDate: 'Domingo 1 de noviembre',
+    sol: [{ time: '14:00', title: 'Show de Mickey Mouse' }],
+    luna: [{ time: '12:00', title: 'Mega Rumba' }],
+    mega: [{ time: '18:00', title: 'Guaynaa' }],
+  },
+];
+const programmingStorage = new MemoryStorage();
+const programming = new MapProgrammingModel(programmingStorage);
+programming.setDays(programmingDays);
+assert.equal(programming.selectedIndex, 0);
+assert.equal(programming.selectedDay.fullDate, 'Viernes 30 de octubre');
+assert.deepEqual(plain(programming.scheduleForVenue('sol')), [
+  { time: '12:00', title: 'Inauguración' },
+]);
+assert.deepEqual(plain(programming.scheduleForVenue('luna')), []);
+assert.equal(programming.selectDay(1), true);
+assert.equal(programming.selectedDay.fullDate, 'Domingo 1 de noviembre');
+assert.deepEqual(plain(programming.scheduleForVenue('mega')), [
+  { time: '18:00', title: 'Guaynaa' },
+]);
+assert.deepEqual(plain(programming.scheduleForVenue('desconocido')), []);
+assert.equal(programming.selectDay(9), false);
+
+assert.equal(
+  programming.updateEntry('mega', 1, 0, {
+    time: '19:15',
+    title: 'Guaynaa actualizado',
+  }),
+  true,
+);
+assert.deepEqual(plain(programming.scheduleForVenue('mega')), [
+  { time: '19:15', title: 'Guaynaa actualizado' },
+]);
+assert.ok(programmingStorage.getItem('mr_fair_programming_v1'));
+
+const restoredProgramming = new MapProgrammingModel(programmingStorage);
+assert.equal(restoredProgramming.setDays(programmingDays), true);
+assert.equal(restoredProgramming.selectDay(1), true);
+assert.deepEqual(plain(restoredProgramming.scheduleForVenue('mega')), [
+  { time: '19:15', title: 'Guaynaa actualizado' },
+]);
+assert.equal(
+  restoredProgramming.updateEntry('desconocido', 1, 0, { time: '20:00' }),
+  false,
+);
+assert.equal(
+  restoredProgramming.updateEntry('mega', 1, 9, { time: '20:00' }),
+  false,
+);
 
 console.log('map_filter_test: ok');

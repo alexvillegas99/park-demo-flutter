@@ -1,19 +1,20 @@
 // Expo Feria Mushuc Runa — App demo (Flutter)
 // Rediseño: sistema visual verde (Home/Agenda/Perfil), gastronomía dark,
-// mapa Mapbox satelital con puck GPS. Cards con foto real, ratings,
+// mapa Google híbrido con GPS. Cards con foto real, ratings,
 // calendario timeline y bottom nav de 5 tabs.
 
-import 'dart:async';
 import 'dart:convert';
 import 'package:park_demo/account/account_screen.dart';
 import 'package:park_demo/account/account_session.dart';
 import 'package:park_demo/auth/access_flow.dart';
 import 'package:park_demo/design/brand_theme.dart';
+import 'package:park_demo/map/map_document_controller.dart';
+import 'package:park_demo/map/map_document_store.dart';
+import 'package:park_demo/map/map_screen.dart';
+import 'package:park_demo/map/map_screen_controller.dart';
+import 'package:park_demo/runi/runi_recommender.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:geolocator/geolocator.dart';
-import 'package:url_launcher/url_launcher.dart';
-import 'package:webview_flutter/webview_flutter.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -1056,13 +1057,16 @@ const kRestaurants = <Restaurant>[
 ];
 
 // ═══════════════════════════════════════════════════════════════════════════
-// ROOT SHELL — 5 tabs
+// ROOT SHELL — 3 tabs + Runi
 // ═══════════════════════════════════════════════════════════════════════════
 class RootShell extends StatefulWidget {
   final AccessSession session;
   final VoidCallback onSignOut;
   final VoidCallback onDeleteLocalAccount;
   final Widget Function(bool active)? mapScreenBuilder;
+  final ProgrammingController? programmingController;
+  final MapDocumentController? mapDocumentController;
+  final MapDocumentStore? mapDocumentStore;
 
   const RootShell({
     super.key,
@@ -1070,6 +1074,9 @@ class RootShell extends StatefulWidget {
     required this.onSignOut,
     required this.onDeleteLocalAccount,
     this.mapScreenBuilder,
+    this.programmingController,
+    this.mapDocumentController,
+    this.mapDocumentStore,
   });
   @override
   State<RootShell> createState() => _RootShellState();
@@ -1078,16 +1085,40 @@ class RootShell extends StatefulWidget {
 class _RootShellState extends State<RootShell> {
   int _tab = 0;
   late final List<Widget?> _screens;
+  late final ProgrammingController _programmingController;
+  late final bool _ownsProgrammingController;
+  late final MapDocumentController _mapDocumentController;
+  late final bool _ownsMapDocumentController;
+  bool _mapReady = false;
+  Object? _mapInitializationError;
+  String? _requestedMapPlaceId;
 
   @override
   void initState() {
     super.initState();
-    _screens = <Widget?>[
-      _screenFor(0),
-      _buildMapScreen(active: false),
-      null,
-      null,
-    ];
+    _ownsProgrammingController = widget.programmingController == null;
+    _programmingController =
+        widget.programmingController ?? ProgrammingController.defaults();
+    _ownsMapDocumentController = widget.mapDocumentController == null;
+    _mapDocumentController =
+        widget.mapDocumentController ?? MapDocumentController();
+    _mapReady =
+        _mapDocumentController.snapshot != null ||
+        widget.mapScreenBuilder != null;
+    _screens = <Widget?>[_screenFor(0), _buildMapScreen(active: false), null];
+    if (!_mapReady) _initializeMapDocument();
+  }
+
+  Future<void> _initializeMapDocument() async {
+    try {
+      await _mapDocumentController.initialize(
+        () => rootBundle.loadString('assets/map/map_document_v4.json'),
+        widget.mapDocumentStore ?? SharedPreferencesMapDocumentStore(),
+      );
+    } on Object catch (error) {
+      _mapInitializationError = error;
+    }
+    if (mounted) setState(() => _mapReady = true);
   }
 
   void _selectTab(int tab) {
@@ -1097,18 +1128,60 @@ class _RootShellState extends State<RootShell> {
   }
 
   Widget _buildMapScreen({required bool active}) {
-    return widget.mapScreenBuilder?.call(active) ?? MapScreen(active: active);
+    return widget.mapScreenBuilder?.call(active) ??
+        MapScreen(
+          active: active,
+          programming: _programmingController,
+          mapDocument: _mapDocumentController,
+          session: widget.session,
+          initialPlaceId: _requestedMapPlaceId,
+        );
+  }
+
+  @override
+  void dispose() {
+    if (_ownsProgrammingController) _programmingController.dispose();
+    if (_ownsMapDocumentController) _mapDocumentController.dispose();
+    super.dispose();
   }
 
   void _openRuni() {
+    final plan = const RuniRecommendationEngine().build(
+      profile: widget.session.profile,
+      now: DateTime.now(),
+      events: _programmingController.toRuniEvents(),
+      places: _mapDocumentController.recommendationPlaces.map(
+        (place) => RuniPlaceOverride(
+          recommendationId: place.recommendationId!,
+          name: place.name,
+          latitude: place.latitude,
+          longitude: place.longitude,
+          isVisible: place.isVisible,
+        ),
+      ),
+    );
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
       backgroundColor: Colors.transparent,
       barrierColor: AppColors.ink.withValues(alpha: .48),
-      builder: (_) => const _RuniSheet(),
+      builder: (_) =>
+          _RuniSheet(plan: plan, onPlaceTap: _openRecommendationOnMap),
     );
+  }
+
+  void _openRecommendationOnMap(String recommendationId) {
+    String? placeId;
+    for (final place in _mapDocumentController.recommendationPlaces) {
+      if (place.recommendationId == recommendationId && place.isVisible) {
+        placeId = place.id;
+        break;
+      }
+    }
+    _requestedMapPlaceId = placeId;
+    _screens[1] = _buildMapScreen(active: true);
+    setState(() => _tab = 1);
   }
 
   void _openAccount() {
@@ -1132,17 +1205,38 @@ class _RootShellState extends State<RootShell> {
   Widget _screenFor(int tab) => switch (tab) {
     0 => HomeScreen(
       displayName: widget.session.displayName,
-      onOpenPackages: () => _selectTab(2),
       onOpenRuni: _openRuni,
       onOpenAccount: _openAccount,
     ),
-    1 => const MapScreen(),
-    2 => const PackagesScreen(),
-    _ => const FoodScreen(),
+    1 => MapScreen(
+      programming: _programmingController,
+      mapDocument: _mapDocumentController,
+      session: widget.session,
+      initialPlaceId: _requestedMapPlaceId,
+    ),
+    _ => ProgrammingScreen(controller: _programmingController),
   };
 
   @override
   Widget build(BuildContext context) {
+    if (!_mapReady) {
+      return const Scaffold(
+        backgroundColor: AppColors.surface,
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+    if (_mapInitializationError != null &&
+        _mapDocumentController.snapshot == null) {
+      return const Scaffold(
+        backgroundColor: AppColors.surface,
+        body: Center(
+          child: Padding(
+            padding: EdgeInsets.all(24),
+            child: Text('No se pudo preparar el mapa local.'),
+          ),
+        ),
+      );
+    }
     return Scaffold(
       extendBody: true,
       backgroundColor: AppColors.surface,
@@ -1175,8 +1269,7 @@ class _BottomNav extends StatelessWidget {
     final items = const [
       (icon: Icons.home_rounded, label: 'Inicio'),
       (icon: Icons.map_rounded, label: 'Mapa'),
-      (icon: Icons.confirmation_number_rounded, label: 'Paquetes'),
-      (icon: Icons.restaurant_rounded, label: 'Comida'),
+      (icon: Icons.event_note_rounded, label: 'Programación'),
     ];
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
@@ -1253,13 +1346,6 @@ class _BottomNav extends StatelessWidget {
               onTap: () => onChange(2),
               inkOff: AppColors.inkSoft,
             ),
-            _NavBtn(
-              icon: items[3].icon,
-              label: items[3].label,
-              active: index == 3,
-              onTap: () => onChange(3),
-              inkOff: AppColors.inkSoft,
-            ),
           ],
         ),
       ),
@@ -1317,32 +1403,13 @@ class _NavBtn extends StatelessWidget {
 }
 
 class _RuniSheet extends StatelessWidget {
-  const _RuniSheet();
+  const _RuniSheet({required this.plan, required this.onPlaceTap});
+
+  final RuniPlan plan;
+  final ValueChanged<String> onPlaceTap;
 
   @override
   Widget build(BuildContext context) {
-    const itinerary =
-        <({String time, String title, String note, IconData icon})>[
-          (
-            time: '10:00',
-            title: 'Parque de Dinosaurios',
-            note: 'Empieza antes de que aumente la fila',
-            icon: Icons.cruelty_free_rounded,
-          ),
-          (
-            time: '11:30',
-            title: 'Paseo en Tren',
-            note: 'Recorre el complejo en familia',
-            icon: Icons.train_rounded,
-          ),
-          (
-            time: '13:00',
-            title: 'Cocina Mushuc Runa',
-            note: 'Almuerzo especial del paquete',
-            icon: Icons.restaurant_rounded,
-          ),
-        ];
-
     return Container(
       constraints: BoxConstraints(
         maxHeight: MediaQuery.sizeOf(context).height * .82,
@@ -1435,15 +1502,55 @@ class _RuniSheet extends StatelessWidget {
                 borderRadius: BorderRadius.circular(19),
                 border: Border.all(color: AppColors.line),
               ),
-              child: const Text(
-                'Armé un plan para tu familia según las filas de hoy y el clima soleado. ¡Aprovechen la mañana en las atracciones al aire libre!',
-                style: TextStyle(
+              child: Text(
+                plan.summary,
+                style: const TextStyle(
                   color: Color(0xFF4A362C),
                   fontSize: 13,
                   height: 1.45,
                   fontWeight: FontWeight.w700,
                 ),
               ),
+            ),
+            const SizedBox(height: 14),
+            const Text(
+              'PLAN BASADO EN',
+              style: TextStyle(
+                color: AppColors.goldDk,
+                fontSize: 9.5,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 1.15,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 7,
+              runSpacing: 7,
+              children: plan.signals
+                  .map(
+                    (signal) => Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.primarySoft,
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(
+                          color: AppColors.gold.withValues(alpha: .65),
+                        ),
+                      ),
+                      child: Text(
+                        signal,
+                        style: const TextStyle(
+                          color: AppColors.primaryDeep,
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  )
+                  .toList(growable: false),
             ),
             const SizedBox(height: 18),
             const Text(
@@ -1455,10 +1562,16 @@ class _RuniSheet extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 12),
-            for (int index = 0; index < itinerary.length; index++)
+            for (int index = 0; index < plan.steps.length; index++)
               _RuniStep(
-                step: itinerary[index],
-                showLine: index != itinerary.length - 1,
+                key: Key('runi-step-$index'),
+                step: plan.steps[index],
+                showLine: index != plan.steps.length - 1,
+                onTap: () {
+                  final placeId = plan.steps[index].placeId;
+                  Navigator.of(context).pop();
+                  onPlaceTap(placeId);
+                },
               ),
             const SizedBox(height: 14),
             Row(
@@ -1507,82 +1620,136 @@ class _RuniSheet extends StatelessWidget {
 }
 
 class _RuniStep extends StatelessWidget {
-  final ({String time, String title, String note, IconData icon}) step;
+  final RuniRecommendation step;
   final bool showLine;
+  final VoidCallback onTap;
 
-  const _RuniStep({required this.step, required this.showLine});
+  const _RuniStep({
+    super.key,
+    required this.step,
+    required this.showLine,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return IntrinsicHeight(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 40,
-            child: Column(
-              children: [
-                Container(
-                  width: 34,
-                  height: 34,
-                  decoration: BoxDecoration(
-                    color: AppColors.primarySoft,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: AppColors.gold),
-                  ),
-                  child: Icon(step.icon, color: AppColors.primary, size: 18),
-                ),
-                if (showLine)
-                  Expanded(
-                    child: Container(
-                      width: 2,
-                      margin: const EdgeInsets.symmetric(vertical: 4),
-                      color: AppColors.line,
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.only(bottom: 16),
+    return InkWell(
+      borderRadius: BorderRadius.circular(18),
+      onTap: onTap,
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: 40,
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    step.time,
-                    style: const TextStyle(
-                      color: AppColors.goldDk,
-                      fontSize: 10.5,
-                      fontWeight: FontWeight.w900,
+                  Container(
+                    width: 34,
+                    height: 34,
+                    decoration: BoxDecoration(
+                      color: AppColors.primarySoft,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: AppColors.gold),
+                    ),
+                    child: Icon(
+                      _runiIcon(step.kind),
+                      color: AppColors.primary,
+                      size: 18,
                     ),
                   ),
-                  Text(
-                    step.title,
-                    style: const TextStyle(
-                      color: AppColors.ink,
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.w900,
+                  if (showLine)
+                    Expanded(
+                      child: Container(
+                        width: 2,
+                        margin: const EdgeInsets.symmetric(vertical: 4),
+                        color: AppColors.line,
+                      ),
                     ),
-                  ),
-                  Text(
-                    step.note,
-                    style: const TextStyle(
-                      color: AppColors.inkSoft,
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
                 ],
               ),
             ),
-          ),
-        ],
+            const SizedBox(width: 10),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          step.timeLabel,
+                          style: const TextStyle(
+                            color: AppColors.goldDk,
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        const Spacer(),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 7,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.surface,
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(
+                            '${(step.confidence * 100).round()}% afinidad estimada',
+                            style: const TextStyle(
+                              color: AppColors.inkSoft,
+                              fontSize: 8.5,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    Text(
+                      step.title,
+                      style: const TextStyle(
+                        color: AppColors.ink,
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    if (step.isScheduledEvent)
+                      Text(
+                        step.placeName,
+                        style: const TextStyle(
+                          color: AppColors.primary,
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    Text(
+                      step.reason,
+                      style: const TextStyle(
+                        color: AppColors.inkSoft,
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 }
+
+IconData _runiIcon(RuniVisitKind kind) => switch (kind) {
+  RuniVisitKind.attraction => Icons.attractions_rounded,
+  RuniVisitKind.farm => Icons.pets_rounded,
+  RuniVisitKind.food => Icons.restaurant_rounded,
+  RuniVisitKind.show => Icons.theater_comedy_rounded,
+  RuniVisitKind.concert => Icons.mic_rounded,
+};
 
 // ═══════════════════════════════════════════════════════════════════════════
 // HOME — Discover style (imagen 1)
@@ -2448,14 +2615,8 @@ class HomeScreen extends StatelessWidget {
           (
             name: 'Bosque de Dinosaurios',
             zone: 'Zona Norte',
-            wait: '10 min',
+            wait: 'Gratuito',
             imageAsset: 'assets/attractions/bosque-dinosaurios.png',
-          ),
-          (
-            name: 'Paseo en Tren',
-            zone: 'Recorrido',
-            wait: '5 min',
-            imageAsset: 'assets/attractions/paseo-tren.png',
           ),
           (
             name: 'Granja interactiva',
@@ -2605,105 +2766,6 @@ class HomeScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 22),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(22),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      AppColors.primaryDeep,
-                      AppColors.primary,
-                      AppColors.primaryDk,
-                    ],
-                  ),
-                  borderRadius: BorderRadius.circular(26),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.primaryDeep.withValues(alpha: .3),
-                      blurRadius: 24,
-                      offset: const Offset(0, 12),
-                    ),
-                  ],
-                ),
-                child: Stack(
-                  children: [
-                    Positioned(
-                      right: -22,
-                      top: -36,
-                      child: Container(
-                        width: 140,
-                        height: 140,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: AppColors.gold.withValues(alpha: .12),
-                        ),
-                      ),
-                    ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'SOLO SÁBADOS',
-                          style: TextStyle(
-                            color: AppColors.gold,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 1.8,
-                          ),
-                        ),
-                        const SizedBox(height: 5),
-                        const Text.rich(
-                          TextSpan(
-                            children: [
-                              TextSpan(text: '2x1 en el paquete '),
-                              TextSpan(
-                                text: 'All Day',
-                                style: TextStyle(color: AppColors.gold),
-                              ),
-                            ],
-                          ),
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 27,
-                            height: 1.05,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: -.5,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        const Text(
-                          'Dinosaurios, piscinas, tren, cabalgata y más. Todo el día, toda la familia.',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 13,
-                            height: 1.35,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        const SizedBox(height: 14),
-                        FilledButton(
-                          onPressed: onOpenPackages,
-                          style: FilledButton.styleFrom(
-                            backgroundColor: AppColors.gold,
-                            foregroundColor: AppColors.primaryDeep,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 17,
-                              vertical: 11,
-                            ),
-                          ),
-                          child: const Text(
-                            'Ver paquetes',
-                            style: TextStyle(fontWeight: FontWeight.w900),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 18),
               const Row(
                 children: [
                   Expanded(
@@ -2711,7 +2773,7 @@ class HomeScreen extends StatelessWidget {
                   ),
                   SizedBox(width: 10),
                   Expanded(
-                    child: _HomeStat(value: '09–18h', label: 'Abierto hoy'),
+                    child: _HomeStat(value: '12 km', label: 'De recorrido'),
                   ),
                   SizedBox(width: 10),
                   Expanded(
@@ -2719,8 +2781,76 @@ class HomeScreen extends StatelessWidget {
                   ),
                 ],
               ),
+              const SizedBox(height: 20),
+              const _HomePrizeBanner(),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HomePrizeBanner extends StatelessWidget {
+  const _HomePrizeBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label:
+          'Promoción de la feria: participa por un viaje a Disney, celulares, consolas y scooters.',
+      image: true,
+      child: Container(
+        key: const Key('home-prize-banner'),
+        clipBehavior: Clip.antiAlias,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: AppColors.line),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.ink.withValues(alpha: .13),
+              blurRadius: 22,
+              offset: const Offset(0, 9),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            AspectRatio(
+              aspectRatio: 1188 / 814,
+              child: Image.asset(
+                'assets/attractions/premios-finados-2026.png',
+                fit: BoxFit.cover,
+                filterQuality: FilterQuality.high,
+              ),
+            ),
+            const Padding(
+              padding: EdgeInsets.fromLTRB(14, 10, 14, 11),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    Icons.info_outline_rounded,
+                    size: 13,
+                    color: AppColors.inkSoft,
+                  ),
+                  SizedBox(width: 7),
+                  Expanded(
+                    child: Text(
+                      'Promoción sujeta a términos y restricciones. Consulta vigencia, mecánica y condiciones en los canales oficiales de la feria.',
+                      style: TextStyle(
+                        color: AppColors.inkSoft,
+                        fontSize: 9.5,
+                        height: 1.35,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -2962,323 +3092,765 @@ class _HomeStat extends StatelessWidget {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// MAP — Mapa ilustrado del recinto ferial
+// PROGRAMACIÓN DIARIA
 // ═══════════════════════════════════════════════════════════════════════════
-class MapExperienceConfig {
-  const MapExperienceConfig._();
+class _ScheduleEntry {
+  final String time;
+  final String title;
 
-  static const bool bundledMapFirst = true;
-  static const bool remoteFontsEnabled = false;
-  static const String demoAdminEmail = 'admin@mushucruna.demo';
+  const _ScheduleEntry(this.time, this.title);
+
+  factory _ScheduleEntry.fromJson(Map<String, dynamic> json) {
+    final time = (json['time'] as String? ?? '').trim();
+    final title = (json['title'] as String? ?? '').trim();
+    if (!RegExp(r'^([01]\d|2[0-3]):[0-5]\d$').hasMatch(time) || title.isEmpty) {
+      throw const FormatException('Presentación inválida');
+    }
+    return _ScheduleEntry(time, title);
+  }
+
+  Map<String, String> toJson() => {'time': time, 'title': title};
 }
 
-class FairLocation {
-  const FairLocation._();
+class _ProgrammingDay {
+  final String weekday;
+  final String day;
+  final String month;
+  final String fullDate;
+  final List<_ScheduleEntry> sun;
+  final List<_ScheduleEntry> moon;
+  final List<_ScheduleEntry> mega;
 
-  // Centro calculado con la misma georreferencia usada por el plano 1900×1018.
-  static const double latitude = -1.3690877425784418;
-  static const double longitude = -78.647792380582;
-  static const double radiusMeters = 900;
-  static const LocationSettings initialLocationSettings = LocationSettings(
-    accuracy: LocationAccuracy.bestForNavigation,
-  );
-  static const LocationSettings trackingLocationSettings = LocationSettings(
-    accuracy: LocationAccuracy.bestForNavigation,
-    distanceFilter: 1,
-  );
+  const _ProgrammingDay({
+    required this.weekday,
+    required this.day,
+    required this.month,
+    required this.fullDate,
+    required this.sun,
+    required this.moon,
+    required this.mega,
+  });
+
+  factory _ProgrammingDay.fromJson(Map<String, dynamic> json) {
+    List<_ScheduleEntry> entries(String key) {
+      final raw = json[key];
+      if (raw is! List) throw const FormatException('Agenda inválida');
+      return raw
+          .map(
+            (entry) => _ScheduleEntry.fromJson(
+              Map<String, dynamic>.from(entry as Map),
+            ),
+          )
+          .toList(growable: false);
+    }
+
+    String requiredText(String key) {
+      final value = (json[key] as String? ?? '').trim();
+      if (value.isEmpty) throw const FormatException('Fecha inválida');
+      return value;
+    }
+
+    return _ProgrammingDay(
+      weekday: requiredText('weekday'),
+      day: requiredText('day'),
+      month: requiredText('month'),
+      fullDate: requiredText('fullDate'),
+      sun: entries('sol'),
+      moon: entries('luna'),
+      mega: entries('mega'),
+    );
+  }
+
+  Map<String, Object> toJson() => {
+    'weekday': weekday,
+    'day': day,
+    'month': month,
+    'fullDate': fullDate,
+    'sol': sun.map((entry) => entry.toJson()).toList(growable: false),
+    'luna': moon.map((entry) => entry.toJson()).toList(growable: false),
+    'mega': mega.map((entry) => entry.toJson()).toList(growable: false),
+  };
 }
 
-class MapScreen extends StatefulWidget {
-  final bool active;
+class ProgrammingController extends ChangeNotifier
+    implements MapProgrammingSource {
+  ProgrammingController._(this._days);
 
-  const MapScreen({super.key, this.active = true});
+  factory ProgrammingController.defaults() => ProgrammingController._(
+    List<_ProgrammingDay>.of(_ProgrammingScreenState._days),
+  );
+
+  List<_ProgrammingDay> _days;
 
   @override
-  State<MapScreen> createState() => _MapScreenState();
+  List<Map<String, Object>> toJsonList() => _days
+      .map((day) => Map<String, Object>.from(day.toJson()))
+      .toList(growable: false);
+
+  List<RuniScheduledEvent> toRuniEvents({int year = 2026}) {
+    const months = <String, int>{'OCT': 10, 'NOV': 11};
+    final events = <RuniScheduledEvent>[];
+    for (final day in _days) {
+      final month = months[day.month];
+      final dayNumber = int.tryParse(day.day);
+      if (month == null || dayNumber == null) continue;
+
+      void addVenue(
+        String id,
+        String name,
+        List<_ScheduleEntry> entries,
+        Set<String> tags,
+      ) {
+        for (final entry in entries) {
+          final parts = entry.time.split(':');
+          if (parts.length != 2) continue;
+          final hour = int.tryParse(parts[0]);
+          final minute = int.tryParse(parts[1]);
+          if (hour == null || minute == null) continue;
+          events.add(
+            RuniScheduledEvent(
+              venueId: id,
+              venueName: name,
+              title: entry.title,
+              startsAt: DateTime(year, month, dayNumber, hour, minute),
+              tags: tags,
+            ),
+          );
+        }
+      }
+
+      addVenue('plaza-sol', 'Plaza del Sol', day.sun, const {'Shows'});
+      addVenue('plaza-luna', 'Plaza de la Luna', day.moon, const {'Shows'});
+      addVenue('megaescenario', 'Megaescenario', day.mega, const {
+        'Shows',
+        'Conciertos',
+      });
+    }
+    events.sort((left, right) => left.startsAt.compareTo(right.startsAt));
+    return List<RuniScheduledEvent>.unmodifiable(events);
+  }
+
+  bool replaceFromJson(Object? raw) {
+    if (raw is! List || raw.isEmpty) return false;
+    try {
+      final next = raw
+          .map(
+            (day) =>
+                _ProgrammingDay.fromJson(Map<String, dynamic>.from(day as Map)),
+          )
+          .toList(growable: false);
+      final currentJson = jsonEncode(toJsonList());
+      final nextJson = jsonEncode(
+        next.map((day) => day.toJson()).toList(growable: false),
+      );
+      if (currentJson == nextJson) return false;
+      _days = next;
+      notifyListeners();
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
 }
 
-class _MapScreenState extends State<MapScreen> {
-  late final WebViewController _wc;
-  bool _loading = true;
-  bool _pageReady = false;
-  bool _gpsStarted = false;
-  bool _promptingMaps = false;
-  StreamSubscription<Position>? _posSub;
+class ProgrammingScreen extends StatefulWidget {
+  final ProgrammingController controller;
 
-  // Script inyectado que redirige navigator.geolocation.* al canal FlutterGeo
-  // y resuelve las promesas cuando Flutter responde.
-  static const String _geoBridge = r'''
-    (function(){
-      if (window.__geoBridgeInstalled) return;
-      var callbacks = {}; var seq = 0;
-      window.__flutterGeoResolve = function(id, lat, lng, accuracy){
-        var cb = callbacks[id]; if (!cb) return;
-        cb.success({
-          coords:{ latitude:lat, longitude:lng, accuracy:accuracy,
-                   altitude:null, altitudeAccuracy:null, heading:null, speed:null },
-          timestamp: Date.now()
-        });
-      };
-      window.__flutterGeoReject = function(id, code, msg){
-        var cb = callbacks[id]; if (!cb) return;
-        if (cb.error) cb.error({ code: code, message: msg,
-          PERMISSION_DENIED:1, POSITION_UNAVAILABLE:2, TIMEOUT:3 });
-      };
-      function req(kind, success, error){
-        var id = ++seq;
-        callbacks[id] = { success: success, error: error, kind: kind };
-        try { FlutterGeo.postMessage(JSON.stringify({id:id, kind:kind})); }
-        catch(e){ if (error) error({code:2,message:'bridge unavailable'}); }
-        return id;
-      }
-      var bridge = {
-        getCurrentPosition: function(success, error){ req('once', success, error); },
-        watchPosition: function(success, error){ return req('watch', success, error); },
-        clearWatch: function(id){ delete callbacks[id]; }
-      };
-      try {
-        Object.defineProperty(navigator, 'geolocation', {
-          configurable: true,
-          value: bridge
-        });
-      } catch (_) {
-        try { navigator.geolocation = bridge; } catch (_) {}
-      }
-      window.__geoBridgeInstalled = navigator.geolocation === bridge;
-    })();
-  ''';
+  const ProgrammingScreen({super.key, required this.controller});
+
+  @override
+  State<ProgrammingScreen> createState() => _ProgrammingScreenState();
+}
+
+class _ProgrammingScreenState extends State<ProgrammingScreen> {
+  static const _sunPink = Color(0xFFD72F77);
+  static const _moonViolet = Color(0xFF5A4AA2);
+  static const _megaPurple = Color(0xFF3C286E);
+
+  static const _days = <_ProgrammingDay>[
+    _ProgrammingDay(
+      weekday: 'VIE',
+      day: '30',
+      month: 'OCT',
+      fullDate: 'Viernes 30 de octubre',
+      sun: [
+        _ScheduleEntry('12:00', 'Inauguración'),
+        _ScheduleEntry('13:00', 'Danza'),
+        _ScheduleEntry('14:00', 'Retro Band'),
+      ],
+      moon: [],
+      mega: [
+        _ScheduleEntry('18:00', 'Grupo Bodega'),
+        _ScheduleEntry('18:00', 'Pablo Noboa'),
+      ],
+    ),
+    _ProgrammingDay(
+      weekday: 'SÁB',
+      day: '31',
+      month: 'OCT',
+      fullDate: 'Sábado 31 de octubre',
+      sun: [
+        _ScheduleEntry('13:00', 'Show Feria'),
+        _ScheduleEntry('14:00', 'Enanos Toreros'),
+      ],
+      moon: [
+        _ScheduleEntry('12:00', 'Mega Rumba'),
+        _ScheduleEntry('14:00', 'Free Style'),
+        _ScheduleEntry('17:00', 'Final Free & Premios'),
+        _ScheduleEntry('18:00', 'Don de Gente'),
+      ],
+      mega: [
+        _ScheduleEntry('18:00', 'William Luna'),
+        _ScheduleEntry('18:00', 'Kjarkas'),
+      ],
+    ),
+    _ProgrammingDay(
+      weekday: 'DOM',
+      day: '01',
+      month: 'NOV',
+      fullDate: 'Domingo 1 de noviembre',
+      sun: [
+        _ScheduleEntry('12:00', 'Mariachi a Caballo'),
+        _ScheduleEntry('13:00', 'Show Feria'),
+        _ScheduleEntry('14:00', 'Show de Mickey Mouse'),
+      ],
+      moon: [
+        _ScheduleEntry('12:00', 'Mega Rumba'),
+        _ScheduleEntry('14:00', 'Milton Araujo'),
+        _ScheduleEntry('15:00', 'Greecy Pérez'),
+        _ScheduleEntry('17:00', 'Las Ñañas'),
+      ],
+      mega: [
+        _ScheduleEntry('18:00', 'Waldokinc'),
+        _ScheduleEntry('18:00', 'Golpe a Golpe'),
+        _ScheduleEntry('18:00', 'Guaynaa'),
+      ],
+    ),
+    _ProgrammingDay(
+      weekday: 'LUN',
+      day: '02',
+      month: 'NOV',
+      fullDate: 'Lunes 2 de noviembre',
+      sun: [
+        _ScheduleEntry('12:00', 'Mariachi a Caballo'),
+        _ScheduleEntry('13:00', 'Show Feria'),
+        _ScheduleEntry('14:00', 'Show de Sirenita'),
+      ],
+      moon: [
+        _ScheduleEntry('12:00', 'Mega Rumba'),
+        _ScheduleEntry('14:00', 'Paolo Ladino'),
+        _ScheduleEntry('17:00', 'Jaime E. Aymara'),
+      ],
+      mega: [
+        _ScheduleEntry('18:00', 'Cliver y su Grupo Coralí'),
+        _ScheduleEntry('18:00', 'Sonido Máster'),
+      ],
+    ),
+    _ProgrammingDay(
+      weekday: 'MAR',
+      day: '03',
+      month: 'NOV',
+      fullDate: 'Martes 3 de noviembre',
+      sun: [
+        _ScheduleEntry('12:00', 'Mariachi a Caballo'),
+        _ScheduleEntry('13:00', 'Show Feria'),
+        _ScheduleEntry('14:00', 'Show de Princesas'),
+      ],
+      moon: [
+        _ScheduleEntry('12:00', 'Mega Rumba'),
+        _ScheduleEntry('14:00', 'David Navarro'),
+        _ScheduleEntry(
+          '15:00',
+          '(Hueveando) Michael Steven, Yalmar y Nexar Gómez',
+        ),
+        _ScheduleEntry('16:00', 'Kanon El Protagonista'),
+      ],
+      mega: [_ScheduleEntry('18:00', 'El Loco Abraham')],
+    ),
+  ];
+
+  int _selectedDay = 0;
 
   @override
   void initState() {
     super.initState();
-    _wc = WebViewController()
-      ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setBackgroundColor(Colors.transparent)
-      ..addJavaScriptChannel('FlutterGeo', onMessageReceived: _handleGeoRequest)
-      ..setNavigationDelegate(
-        NavigationDelegate(
-          onPageStarted: (_) => _wc.runJavaScript(_geoBridge),
-          onPageFinished: (_) async {
-            await _wc.runJavaScript(_geoBridge);
-            _pageReady = true;
-            await _startGpsWhenVisible();
-            if (mounted) setState(() => _loading = false);
-          },
-        ),
-      )
-      ..loadFlutterAsset('assets/map/index.html');
+    widget.controller.addListener(_handleProgrammingChanged);
   }
 
   @override
-  void didUpdateWidget(covariant MapScreen oldWidget) {
+  void didUpdateWidget(covariant ProgrammingScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (!oldWidget.active && widget.active) {
-      _startGpsWhenVisible();
+    if (oldWidget.controller != widget.controller) {
+      oldWidget.controller.removeListener(_handleProgrammingChanged);
+      widget.controller.addListener(_handleProgrammingChanged);
     }
   }
 
-  Future<void> _startGpsWhenVisible() async {
-    if (!widget.active || !_pageReady || _gpsStarted) return;
-    _gpsStarted = true;
-    await _wc.runJavaScript('startGPS();');
+  void _handleProgrammingChanged() {
+    if (!mounted) return;
+    setState(() {
+      if (_selectedDay >= widget.controller._days.length) {
+        _selectedDay = widget.controller._days.length - 1;
+      }
+    });
   }
 
   @override
   void dispose() {
-    _posSub?.cancel();
+    widget.controller.removeListener(_handleProgrammingChanged);
     super.dispose();
-  }
-
-  Future<void> _handleGeoRequest(JavaScriptMessage msg) async {
-    Map<String, dynamic> req;
-    try {
-      req = jsonDecode(msg.message) as Map<String, dynamic>;
-    } catch (_) {
-      return;
-    }
-    final id = req['id'] as int;
-    final kind = req['kind'] as String;
-
-    if (!await Geolocator.isLocationServiceEnabled()) {
-      _reject(id, 2, 'Activa la ubicación en Ajustes');
-      return;
-    }
-    var perm = await Geolocator.checkPermission();
-    if (perm == LocationPermission.denied) {
-      perm = await Geolocator.requestPermission();
-    }
-    if (perm == LocationPermission.denied ||
-        perm == LocationPermission.deniedForever) {
-      _reject(id, 1, 'Permiso de ubicación denegado');
-      return;
-    }
-    try {
-      final p = await Geolocator.getCurrentPosition(
-        locationSettings: FairLocation.initialLocationSettings,
-      );
-      final distMeters = Geolocator.distanceBetween(
-        p.latitude,
-        p.longitude,
-        FairLocation.latitude,
-        FairLocation.longitude,
-      );
-      if (distMeters > FairLocation.radiusMeters) {
-        // Fuera del recinto → ofrecer abrir Maps para navegar hasta la feria
-        _reject(id, 2, 'Estás fuera del recinto');
-        if (!_promptingMaps && mounted) {
-          _promptingMaps = true;
-          await _promptOpenMaps(distMeters);
-          _promptingMaps = false;
-        }
-        return;
-      }
-      // Dentro del recinto → devolver posición al mapa
-      _resolve(id, p);
-      if (kind == 'watch') {
-        _posSub?.cancel();
-        _posSub =
-            Geolocator.getPositionStream(
-              locationSettings: FairLocation.trackingLocationSettings,
-            ).listen((p) {
-              final d = Geolocator.distanceBetween(
-                p.latitude,
-                p.longitude,
-                FairLocation.latitude,
-                FairLocation.longitude,
-              );
-              if (d <= FairLocation.radiusMeters) _resolve(id, p);
-            }, onError: (e) => _reject(id, 2, e.toString()));
-      }
-    } catch (e) {
-      _reject(id, 2, e.toString());
-    }
-  }
-
-  Future<void> _promptOpenMaps(double distMeters) async {
-    final km = distMeters / 1000;
-    final distLabel = km >= 1
-        ? '${km.toStringAsFixed(1)} km'
-        : '${distMeters.round()} m';
-    final open = await showDialog<bool>(
-      context: context,
-      barrierDismissible: true,
-      builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
-        title: const Row(
-          children: [
-            Icon(Icons.route_rounded, color: AppColors.primary),
-            SizedBox(width: 8),
-            Text('Estás fuera del recinto'),
-          ],
-        ),
-        content: Text(
-          'Estás a $distLabel de la Expo Feria Mushuc Runa. ¿Te llevo con Google Maps hasta la entrada?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton.icon(
-            style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
-            onPressed: () => Navigator.pop(context, true),
-            icon: const Icon(Icons.navigation_rounded, size: 18),
-            label: const Text('Cómo llegar'),
-          ),
-        ],
-      ),
-    );
-    if (open == true) _launchMapsToFair();
-  }
-
-  Future<void> _launchMapsToFair() async {
-    // Google Maps (universal). En iOS abre la app de Google Maps si está instalada,
-    // sino cae en Apple Maps por handoff, sino en Safari.
-    final gmaps = Uri.parse(
-      'https://www.google.com/maps/dir/?api=1&destination=${FairLocation.latitude},${FairLocation.longitude}&travelmode=driving',
-    );
-    final appleMaps = Uri.parse(
-      'http://maps.apple.com/?daddr=${FairLocation.latitude},${FairLocation.longitude}&dirflg=d',
-    );
-    if (await canLaunchUrl(gmaps)) {
-      await launchUrl(gmaps, mode: LaunchMode.externalApplication);
-    } else if (await canLaunchUrl(appleMaps)) {
-      await launchUrl(appleMaps, mode: LaunchMode.externalApplication);
-    }
-  }
-
-  void _resolve(int id, Position p) {
-    _wc.runJavaScript(
-      'window.__flutterGeoResolve($id, ${p.latitude}, ${p.longitude}, ${p.accuracy});',
-    );
-  }
-
-  void _reject(int id, int code, String msg) {
-    final safe = msg.replaceAll("'", "\\'");
-    _wc.runJavaScript("window.__flutterGeoReject($id, $code, '$safe');");
   }
 
   @override
   Widget build(BuildContext context) {
-    final topPad = MediaQuery.of(context).padding.top;
-    const bottomNavGap =
-        96.0; // deja espacio a la bottom nav flotante de la app
+    final days = widget.controller._days;
+    final selected = days[_selectedDay];
     return ColoredBox(
-      color: const Color(0xFF94BD78),
-      child: Padding(
-        padding: EdgeInsets.only(top: topPad, bottom: bottomNavGap),
-        child: Stack(
-          children: [
-            Positioned.fill(child: WebViewWidget(controller: _wc)),
-            if (_loading)
-              Positioned(
-                left: 20,
-                right: 20,
-                bottom: 18,
-                child: Center(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 9,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: .94),
-                      borderRadius: BorderRadius.circular(18),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.ink.withValues(alpha: .16),
-                          blurRadius: 14,
-                          offset: const Offset(0, 6),
-                        ),
-                      ],
-                    ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: AppColors.primary,
-                          ),
-                        ),
-                        SizedBox(width: 9),
-                        Text(
-                          'Preparando mapa interactivo…',
-                          style: TextStyle(
-                            color: AppColors.ink,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+      color: AppColors.surface,
+      child: SafeArea(
+        bottom: false,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(18, 14, 18, 136),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const _ProgrammingHeader(),
+              const SizedBox(height: 20),
+              const Text(
+                'ELIGE EL DÍA',
+                style: TextStyle(
+                  color: AppColors.goldDk,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 1.8,
                 ),
               ),
-          ],
+              const SizedBox(height: 9),
+              Row(
+                children: List.generate(days.length, (index) {
+                  final date = days[index];
+                  return Expanded(
+                    child: Padding(
+                      padding: EdgeInsets.only(
+                        right: index == days.length - 1 ? 0 : 6,
+                      ),
+                      child: _ProgrammingDayButton(
+                        key: Key('programming-day-$index'),
+                        date: date,
+                        selected: index == _selectedDay,
+                        onTap: () => setState(() => _selectedDay = index),
+                      ),
+                    ),
+                  );
+                }),
+              ),
+              const SizedBox(height: 18),
+              Row(
+                children: [
+                  Container(
+                    width: 34,
+                    height: 34,
+                    decoration: const BoxDecoration(
+                      color: AppColors.primarySoft,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.calendar_today_rounded,
+                      color: AppColors.primary,
+                      size: 17,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      selected.fullDate,
+                      style: const TextStyle(
+                        color: AppColors.ink,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 13),
+              _ProgrammingVenueCard(
+                key: const Key('programming-venue-sol'),
+                title: 'Plaza del Sol',
+                subtitle: 'ACTIVIDADES PARA TODA LA FAMILIA',
+                icon: Icons.wb_sunny_rounded,
+                color: _sunPink,
+                entries: selected.sun,
+              ),
+              const SizedBox(height: 14),
+              _ProgrammingVenueCard(
+                key: const Key('programming-venue-luna'),
+                title: 'Plaza de la Luna',
+                subtitle: 'RUMBA, TALENTO Y ENTRETENIMIENTO',
+                icon: Icons.dark_mode_rounded,
+                color: _moonViolet,
+                entries: selected.moon,
+              ),
+              const SizedBox(height: 14),
+              _ProgrammingVenueCard(
+                key: const Key('programming-venue-mega'),
+                title: 'Megaescenario',
+                subtitle: 'CONCIERTOS Y ARTISTAS INVITADOS',
+                icon: Icons.mic_rounded,
+                color: _megaPurple,
+                entries: selected.mega,
+                isMega: true,
+              ),
+            ],
+          ),
         ),
+      ),
+    );
+  }
+}
+
+class _ProgrammingHeader extends StatelessWidget {
+  const _ProgrammingHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(18, 18, 18, 19),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [AppColors.primaryDk, AppColors.primary],
+        ),
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withValues(alpha: .24),
+            blurRadius: 24,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 52,
+            height: 52,
+            decoration: BoxDecoration(
+              color: AppColors.gold.withValues(alpha: .17),
+              borderRadius: BorderRadius.circular(17),
+              border: Border.all(color: AppColors.gold, width: 1.2),
+            ),
+            child: const Icon(
+              Icons.celebration_rounded,
+              color: AppColors.gold,
+              size: 27,
+            ),
+          ),
+          const SizedBox(width: 14),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'FINADOS 2026 · MUSHUC RUNA',
+                  style: TextStyle(
+                    color: AppColors.gold,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1.4,
+                  ),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  'Programación diaria',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 25,
+                    height: 1.05,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -.6,
+                  ),
+                ),
+                SizedBox(height: 5),
+                Text(
+                  'Tu guía de actividades y shows por escenario.',
+                  style: TextStyle(
+                    color: Color(0xFFF4DDDD),
+                    fontSize: 11.5,
+                    height: 1.3,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProgrammingDayButton extends StatelessWidget {
+  final _ProgrammingDay date;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _ProgrammingDayButton({
+    super.key,
+    required this.date,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: date.fullDate,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(17),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.symmetric(vertical: 9),
+          decoration: BoxDecoration(
+            color: selected ? AppColors.primary : Colors.white,
+            borderRadius: BorderRadius.circular(17),
+            border: Border.all(
+              color: selected ? AppColors.primary : AppColors.line,
+              width: 1.3,
+            ),
+            boxShadow: selected
+                ? [
+                    BoxShadow(
+                      color: AppColors.primary.withValues(alpha: .2),
+                      blurRadius: 12,
+                      offset: const Offset(0, 5),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Column(
+            children: [
+              Text(
+                date.weekday,
+                style: TextStyle(
+                  color: selected ? AppColors.gold : AppColors.goldDk,
+                  fontSize: 9,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: .9,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                date.day,
+                style: TextStyle(
+                  color: selected ? Colors.white : AppColors.ink,
+                  fontSize: 20,
+                  height: 1,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                date.month,
+                style: TextStyle(
+                  color: selected
+                      ? Colors.white.withValues(alpha: .8)
+                      : AppColors.inkSoft,
+                  fontSize: 8.5,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ProgrammingVenueCard extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final Color color;
+  final List<_ScheduleEntry> entries;
+  final bool isMega;
+
+  const _ProgrammingVenueCard({
+    super.key,
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.color,
+    required this.entries,
+    this.isMega = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: color.withValues(alpha: .18), width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.ink.withValues(alpha: .08),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [color, Color.lerp(color, Colors.black, .16)!],
+              ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 43,
+                  height: 43,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: .16),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: .45),
+                    ),
+                  ),
+                  child: Icon(icon, color: Colors.white, size: 24),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 19,
+                          height: 1.05,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        subtitle,
+                        style: TextStyle(
+                          color: isMega
+                              ? AppColors.gold
+                              : Colors.white.withValues(alpha: .78),
+                          fontSize: 9,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 1,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (entries.isEmpty)
+            const Padding(
+              padding: EdgeInsets.all(18),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.event_available_rounded,
+                    color: AppColors.inkSoft,
+                    size: 20,
+                  ),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Sin actividades programadas para este día.',
+                      style: TextStyle(
+                        color: AppColors.inkSoft,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 9, 14, 11),
+              child: Column(
+                children: List.generate(entries.length, (index) {
+                  final entry = entries[index];
+                  return Container(
+                    padding: const EdgeInsets.symmetric(vertical: 9),
+                    decoration: BoxDecoration(
+                      border: index == entries.length - 1
+                          ? null
+                          : Border(
+                              bottom: BorderSide(
+                                color: color.withValues(alpha: .12),
+                              ),
+                            ),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 54,
+                          padding: const EdgeInsets.symmetric(vertical: 6),
+                          decoration: BoxDecoration(
+                            color: color.withValues(alpha: .1),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          alignment: Alignment.center,
+                          child: Text(
+                            entry.time,
+                            style: TextStyle(
+                              color: color,
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 11),
+                        Expanded(
+                          child: Text(
+                            entry.title,
+                            style: const TextStyle(
+                              color: AppColors.ink,
+                              fontSize: 13,
+                              height: 1.25,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                        if (isMega) ...[
+                          const SizedBox(width: 8),
+                          Icon(
+                            Icons.auto_awesome_rounded,
+                            color: color.withValues(alpha: .72),
+                            size: 16,
+                          ),
+                        ],
+                      ],
+                    ),
+                  );
+                }),
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -3311,7 +3883,7 @@ class PackagesScreen extends StatelessWidget {
           benefits: [
             'Parque de dinosaurios',
             'Resbaladera Gigante',
-            'Piscinas y Paseo en Tren',
+            'Piscinas y juegos familiares',
             'Mushuc Park y Cabalgata',
             'Asado de búfalo',
             'Parqueadero e ingreso',
@@ -3328,7 +3900,7 @@ class PackagesScreen extends StatelessWidget {
           benefits: [
             'Parque de dinosaurios',
             'Resbaladera Gigante',
-            'Piscinas y Paseo en Tren',
+            'Piscinas y juegos familiares',
             'Mushuc Park y Cabalgata',
             'Almuerzo especial',
             'Parqueadero e ingreso',
@@ -3345,7 +3917,7 @@ class PackagesScreen extends StatelessWidget {
           benefits: [
             'Dos entradas por el precio de una',
             'Dinosaurios y Resbaladera',
-            'Piscinas y Paseo en Tren',
+            'Piscinas y juegos familiares',
             'Cabalgata y Mushuc Park',
             'Parqueadero e ingreso',
           ],

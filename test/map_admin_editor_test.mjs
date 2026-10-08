@@ -36,15 +36,19 @@ const {
   MapAdminDocument,
   MapAdminAuth,
   MapAdminSession,
+  MAP_DOCUMENT_SCHEMA_VERSION,
   MAP_DOCUMENT_STORAGE_KEY,
   MAP_DOCUMENT_BACKUP_KEY,
+  MAP_DOCUMENT_LEGACY_KEY,
 } = browserContext;
 
 assert.equal(typeof MapAdminDocument, 'function');
 assert.equal(typeof MapAdminAuth, 'object');
 assert.equal(typeof MapAdminSession, 'function');
-assert.equal(MAP_DOCUMENT_STORAGE_KEY, 'mr_map_document_v2');
-assert.equal(MAP_DOCUMENT_BACKUP_KEY, 'mr_map_document_v2_backup');
+assert.equal(MAP_DOCUMENT_SCHEMA_VERSION, 3);
+assert.equal(MAP_DOCUMENT_STORAGE_KEY, 'mr_map_document_v3');
+assert.equal(MAP_DOCUMENT_BACKUP_KEY, 'mr_map_document_v3_backup');
+assert.equal(MAP_DOCUMENT_LEGACY_KEY, 'mr_map_document_v2');
 
 const seed = [
   {
@@ -65,6 +69,116 @@ const seed = [
   },
   { id: 11, cat: 'acceso', name: 'Acceso 1', x: 333.3, y: 352.7 },
 ];
+
+const legacySeed = [
+  { id: 11, cat: 'acceso', name: 'Acceso 1', x: 333.3, y: 352.7 },
+  { id: 20, cat: 'evento', name: 'Mega Escenario', x: 1181.6, y: 319.8 },
+];
+const officialSeed = [
+  { id: 11, cat: 'acceso', name: 'Acceso 1', x: 690, y: 120 },
+  {
+    id: 20,
+    cat: 'evento',
+    name: 'Mega Escenario',
+    x: 890,
+    y: 755,
+    recommendationId: 'megaescenario',
+  },
+];
+const legacyStorage = new MemoryStorage();
+legacyStorage.setItem(
+  MAP_DOCUMENT_LEGACY_KEY,
+  JSON.stringify({
+    schemaVersion: 2,
+    updatedAt: '2026-09-01T12:00:00.000Z',
+    places: [
+      {
+        ...legacySeed[0],
+        events: [],
+      },
+      {
+        ...legacySeed[1],
+        x: 1201.6,
+        isVisible: false,
+        events: [
+          {
+            id: 'legacy-event',
+            title: 'Show conservado',
+            time: '18:00',
+            status: 'publicado',
+          },
+        ],
+      },
+      {
+        id: 'custom-legacy',
+        cat: 'servicio',
+        name: 'Punto personalizado',
+        x: 900,
+        y: 500,
+        events: [],
+      },
+      {
+        id: 52,
+        cat: 'trans',
+        name: 'Estación de trasbordo',
+        x: 376,
+        y: 396.7,
+        events: [],
+      },
+    ],
+  }),
+);
+const migrationEmissions = [];
+const migrated = new MapAdminDocument(officialSeed, legacyStorage, {
+  legacySeed,
+  migratePoint(point, legacyPoint, officialPoint) {
+    const unchanged =
+      legacyPoint &&
+      officialPoint &&
+      Math.hypot(point.x - legacyPoint.x, point.y - legacyPoint.y) <= 1;
+    return unchanged
+      ? { x: officialPoint.x, y: officialPoint.y, needsReview: false }
+      : { x: 700, y: 600, needsReview: true };
+  },
+  onChange(document) {
+    migrationEmissions.push(document);
+  },
+});
+const migratedPlaces = migrated.load();
+assert.equal(migratedPlaces.length, 3);
+assert.equal(migrated.findPoint(11).x, 690);
+assert.equal(migrated.findPoint(11).needsReview, false);
+assert.equal(migrated.findPoint(20).x, 700);
+assert.equal(migrated.findPoint(20).needsReview, true);
+assert.equal(migrated.findPoint(20).isVisible, false);
+assert.equal(migrated.findPoint(20).events[0].title, 'Show conservado');
+assert.equal(migrated.findPoint('custom-legacy').needsReview, true);
+assert.equal(migrated.findPoint(52), null);
+assert.ok(legacyStorage.getItem(MAP_DOCUMENT_LEGACY_KEY));
+assert.ok(legacyStorage.getItem(MAP_DOCUMENT_STORAGE_KEY));
+assert.equal(migrationEmissions.length, 1);
+
+const emissionStorage = new MemoryStorage();
+const emissions = [];
+const emittingDoc = new MapAdminDocument(officialSeed, emissionStorage, {
+  onChange(document) {
+    emissions.push(document);
+  },
+});
+emittingDoc.load();
+const emittedPoint = emittingDoc.createPoint({
+  name: 'Punto emitido',
+  cat: 'servicio',
+  x: 800,
+  y: 500,
+});
+emittingDoc.movePoint(emittedPoint.id, 810, 510);
+emittingDoc.undoMove();
+emittingDoc.updatePoint(emittedPoint.id, { name: 'Punto confirmado' });
+assert.equal(emissions.length, 5);
+const repeated = emittingDoc.exportObject();
+assert.equal(emittingDoc.applyExternalDocument(repeated), false);
+assert.equal(emissions.length, 5);
 
 const storage = new MemoryStorage();
 const doc = new MapAdminDocument(seed, storage);
@@ -116,7 +230,7 @@ doc.updatePoint(created.id, { isVisible: true });
 assert.equal(doc.publishedEventsFor(created.id).length, 1);
 
 const exported = JSON.parse(doc.exportJson());
-assert.equal(exported.schemaVersion, 2);
+assert.equal(exported.schemaVersion, 3);
 assert.equal(exported.places.at(-1).events.length, 1);
 assert.ok(exported.updatedAt);
 
@@ -127,7 +241,7 @@ assert.throws(
 assert.throws(
   () =>
     doc.importJson(
-      '{"schemaVersion":2,"places":[{"id":"x","cat":"servicio","name":"","x":1,"y":1}]}',
+      '{"schemaVersion":3,"places":[{"id":"x","cat":"servicio","name":"","x":1,"y":1}]}',
     ),
   /nombre/i,
 );
@@ -136,14 +250,6 @@ assert.equal(doc.findPoint(created.id).name, 'Información principal');
 const restored = new MapAdminDocument(seed, storage);
 restored.load();
 assert.equal(restored.findPoint(created.id).name, 'Información principal');
-
-const mapHtml = readFileSync(
-  new URL('../assets/map/index.html', import.meta.url),
-  'utf8',
-);
-assert.doesNotMatch(mapHtml, /fonts\.googleapis\.com/);
-assert.match(mapHtml, /#ovl\{display:none!important/);
-assert.match(mapHtml, /<script src="\.\/admin_editor\.js"><\/script>/);
 
 assert.equal(
   MapAdminAuth.accepts('admin@mushucruna.demo', 'Mushuc2026!'),
@@ -165,33 +271,14 @@ assert.doesNotThrow(() => adminSession.requireCanEdit());
 adminSession.logout();
 assert.equal(adminSession.canEdit, false);
 
-for (const id of [
-  'adminLogin',
-  'adminPanel',
-  'adminPointList',
-  'adminInspector',
-  'adminCreatePoint',
-  'adminUndoMove',
-  'adminEventModal',
-  'adminEventForm',
-  'adminAddEvent',
-  'adminExportJson',
-  'adminImportJson',
-  'adminImportModal',
-  'adminRestoreBackup',
-]) {
-  assert.match(mapHtml, new RegExp(`id="${id}"`));
-}
-assert.match(mapHtml, /function openAdminLogin\(/);
-assert.match(mapHtml, /function renderAdminPointList\(/);
-assert.match(mapHtml, /function beginAdminDrag\(/);
-assert.match(mapHtml, /function renderAdminEvents\(/);
-assert.match(mapHtml, /function openAdminEventEditor\(/);
-assert.match(mapHtml, /function importAdminDocument\(/);
-assert.match(mapHtml, /function base2ll\(/);
-assert.match(mapHtml, /id="adminCoordLat"/);
-assert.match(mapHtml, /id="adminCoordLng"/);
-assert.match(mapHtml, /adminSession\.requireCanEdit\(\)/);
-assert.doesNotMatch(mapHtml, /\beditMode\b|\bmoveSelected\b|\bsetEdit\b/);
+const pubspec = readFileSync(new URL('../pubspec.yaml', import.meta.url), 'utf8');
+const nativeMap = readFileSync(
+  new URL('../lib/map/map_screen.dart', import.meta.url),
+  'utf8',
+);
+assert.doesNotMatch(pubspec, /assets\/map\/index\.html/);
+assert.doesNotMatch(pubspec, /mushuc_runa_validated\.svg/);
+assert.match(nativeMap, /MapType\.hybrid/);
+assert.doesNotMatch(nativeMap, /WebViewWidget/);
 
 console.log('map_admin_editor_test: ok');

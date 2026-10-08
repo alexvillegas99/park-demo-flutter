@@ -81,6 +81,9 @@ class _AccessGateState extends State<AccessGate> {
         displayName: _displayName,
         email: _loginEmail.text.trim(),
         provider: AccessProvider.local,
+        role: _loginEmail.text.trim().toLowerCase() == 'admin@mushucruna.demo'
+            ? AccessRole.admin
+            : AccessRole.visitor,
       );
       _accessNotice = null;
       _stage = AccessStage.app;
@@ -174,6 +177,13 @@ class _AccessGateState extends State<AccessGate> {
         displayName: _displayName,
         email: _pendingEmail,
         provider: _pendingProvider,
+        profile: VisitorProfile(
+          visitReasons: Set<String>.unmodifiable(_visitReasons),
+          visitFrequency: _visitFrequency,
+          recommendationReasons: Set<String>.unmodifiable(
+            _recommendationReasons,
+          ),
+        ),
       );
       _stage = AccessStage.app;
     });

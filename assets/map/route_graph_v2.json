@@ -1,0 +1,230 @@
+{
+  "version": 2,
+  "nodes": [
+    {
+      "id": "access-1",
+      "latitude": -1.3684769962114673,
+      "longitude": -78.65151912830171,
+      "accessId": "11"
+    },
+    {
+      "id": "north-1",
+      "latitude": -1.3687484911194245,
+      "longitude": -78.65057487532457
+    },
+    {
+      "id": "north-2",
+      "latitude": -1.369146805771091,
+      "longitude": -78.64968369939392
+    },
+    {
+      "id": "access-2",
+      "latitude": -1.3706247994434104,
+      "longitude": -78.65199194701448,
+      "accessId": "12"
+    },
+    {
+      "id": "west-1",
+      "latitude": -1.370199087179403,
+      "longitude": -78.65082990379683
+    },
+    {
+      "id": "access-3",
+      "latitude": -1.3721312850255056,
+      "longitude": -78.6506831995043,
+      "accessId": "13"
+    },
+    {
+      "id": "west-3",
+      "latitude": -1.371511338793574,
+      "longitude": -78.65082680377695
+    },
+    {
+      "id": "west-2",
+      "latitude": -1.370459057385262,
+      "longitude": -78.64968059937404
+    },
+    {
+      "id": "plaza-luna",
+      "latitude": -1.3696178522878562,
+      "longitude": -78.64905080695641,
+      "placeId": "28"
+    },
+    {
+      "id": "patio-luna",
+      "latitude": -1.3695262426865618,
+      "longitude": -78.64916589239968,
+      "placeId": "30"
+    },
+    {
+      "id": "center-south-1",
+      "latitude": -1.369109969290652,
+      "longitude": -78.64781716471383
+    },
+    {
+      "id": "center-south-2",
+      "latitude": -1.3687144337186694,
+      "longitude": -78.64695658140568
+    },
+    {
+      "id": "megaescenario",
+      "latitude": -1.3683715122171023,
+      "longitude": -78.64615330831766,
+      "placeId": "20"
+    },
+    {
+      "id": "patio-mega",
+      "latitude": -1.3677466426272615,
+      "longitude": -78.64543685306535,
+      "placeId": "31"
+    },
+    {
+      "id": "plaza-sol",
+      "latitude": -1.3679063449262399,
+      "longitude": -78.6464702970399,
+      "placeId": "93"
+    },
+    {
+      "id": "mushuc-park",
+      "latitude": -1.3676698916239916,
+      "longitude": -78.64635598660159,
+      "placeId": "21"
+    },
+    {
+      "id": "center-north",
+      "latitude": -1.368520076093519,
+      "longitude": -78.64810573082748
+    },
+    {
+      "id": "access-4",
+      "latitude": -1.367590339437211,
+      "longitude": -78.64293882095669,
+      "accessId": "14"
+    },
+    {
+      "id": "east-south",
+      "latitude": -1.3678221535720443,
+      "longitude": -78.64394337731967
+    },
+    {
+      "id": "access-5",
+      "latitude": -1.3657756022784497,
+      "longitude": -78.64414004716147,
+      "accessId": "15"
+    },
+    {
+      "id": "east-mid",
+      "latitude": -1.366688481993047,
+      "longitude": -78.6446065523777
+    },
+    {
+      "id": "access-6",
+      "latitude": -1.365766258405764,
+      "longitude": -78.64403182422295,
+      "accessId": "16"
+    },
+    {
+      "id": "east-north",
+      "latitude": -1.3659271280451304,
+      "longitude": -78.64449348194735
+    }
+  ],
+  "edges": [
+    {
+      "from": "access-1",
+      "to": "north-1"
+    },
+    {
+      "from": "north-1",
+      "to": "north-2"
+    },
+    {
+      "from": "north-2",
+      "to": "west-1"
+    },
+    {
+      "from": "access-2",
+      "to": "west-1"
+    },
+    {
+      "from": "west-1",
+      "to": "plaza-luna"
+    },
+    {
+      "from": "access-3",
+      "to": "west-3"
+    },
+    {
+      "from": "west-3",
+      "to": "west-2"
+    },
+    {
+      "from": "west-2",
+      "to": "plaza-luna"
+    },
+    {
+      "from": "north-2",
+      "to": "center-north"
+    },
+    {
+      "from": "center-north",
+      "to": "plaza-sol"
+    },
+    {
+      "from": "center-north",
+      "to": "plaza-luna"
+    },
+    {
+      "from": "plaza-luna",
+      "to": "patio-luna"
+    },
+    {
+      "from": "plaza-luna",
+      "to": "center-south-1"
+    },
+    {
+      "from": "center-south-1",
+      "to": "center-south-2"
+    },
+    {
+      "from": "center-south-2",
+      "to": "megaescenario"
+    },
+    {
+      "from": "megaescenario",
+      "to": "patio-mega"
+    },
+    {
+      "from": "patio-mega",
+      "to": "plaza-sol"
+    },
+    {
+      "from": "plaza-sol",
+      "to": "mushuc-park"
+    },
+    {
+      "from": "mushuc-park",
+      "to": "east-mid"
+    },
+    {
+      "from": "patio-mega",
+      "to": "east-south"
+    },
+    {
+      "from": "access-4",
+      "to": "east-south"
+    },
+    {
+      "from": "access-5",
+      "to": "east-mid"
+    },
+    {
+      "from": "access-5",
+      "to": "east-north"
+    },
+    {
+      "from": "access-6",
+      "to": "east-north"
+    }
+  ]
+}

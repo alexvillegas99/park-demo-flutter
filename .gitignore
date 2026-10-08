@@ -43,3 +43,10 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Local Google Maps credentials. Keep real keys outside version control.
+/android/secrets.properties
+/ios/Flutter/GoogleMapsSecrets.xcconfig
+
+# Local design-session runtime files.
+/.superpowers/

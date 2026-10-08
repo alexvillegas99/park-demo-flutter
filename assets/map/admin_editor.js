@@ -1,22 +1,15 @@
 (function (root) {
   'use strict';
 
-  const MAP_DOCUMENT_SCHEMA_VERSION = 2;
-  const MAP_DOCUMENT_STORAGE_KEY = 'mr_map_document_v2';
-  const MAP_DOCUMENT_BACKUP_KEY = 'mr_map_document_v2_backup';
-  const MAP_WIDTH = 1900;
-  const MAP_HEIGHT = 1018;
+  const MAP_DOCUMENT_SCHEMA_VERSION = 3;
+  const MAP_DOCUMENT_STORAGE_KEY = 'mr_map_document_v3';
+  const MAP_DOCUMENT_BACKUP_KEY = 'mr_map_document_v3_backup';
+  const MAP_DOCUMENT_LEGACY_KEY = 'mr_map_document_v2';
+  const MAP_WIDTH = 1600;
+  const MAP_HEIGHT = 1327;
   const VALID_CATEGORIES = new Set([
-    'evento',
-    'bano',
-    'acceso',
-    'salida',
-    'show',
-    'comida',
-    'servicio',
-    'parqueo',
-    'trans',
-    'zona',
+    'evento', 'bano', 'acceso', 'salida', 'show', 'comida',
+    'servicio', 'parqueo', 'zona',
   ]);
   const VALID_EVENT_STATUS = new Set(['borrador', 'publicado', 'cancelado']);
 
@@ -41,6 +34,16 @@
   function nextId(prefix) {
     nextId.sequence = (nextId.sequence || 0) + 1;
     return `${prefix}-${Date.now()}-${nextId.sequence}`;
+  }
+
+  function nextUpdatedAt(previous) {
+    const now = Date.now();
+    const previousTime = Date.parse(previous || '');
+    return new Date(
+      Number.isFinite(previousTime) && previousTime >= now
+        ? previousTime + 1
+        : now,
+    ).toISOString();
   }
 
   const MapAdminAuth = Object.freeze({
@@ -70,57 +73,45 @@
     }
 
     requireCanEdit() {
-      if (!this.canEdit) {
-        throw new Error('Se requiere una sesión de administrador');
-      }
+      if (!this.canEdit) throw new Error('Se requiere una sesión de administrador');
     }
   }
 
   class MapAdminDocument {
-    constructor(seed, storage) {
+    constructor(seed, storage, options) {
       this.seed = clone(Array.isArray(seed) ? seed : []);
       this.storage = storage || root.localStorage;
+      this.options = options || {};
+      this.legacySeed = clone(
+        Array.isArray(this.options.legacySeed) ? this.options.legacySeed : [],
+      );
+      this.migratePoint = typeof this.options.migratePoint === 'function'
+        ? this.options.migratePoint
+        : null;
+      this.onChange = typeof this.options.onChange === 'function'
+        ? this.options.onChange
+        : null;
       this.places = [];
+      this.updatedAt = null;
       this.undoStack = [];
     }
 
     load() {
-      const current = this._read(MAP_DOCUMENT_STORAGE_KEY);
-      const backup = this._read(MAP_DOCUMENT_BACKUP_KEY);
-      let document = null;
-
-      for (const candidate of [current, backup]) {
-        if (!candidate) continue;
-        try {
-          document = this._validateDocument(candidate);
-          break;
-        } catch (_) {
-          document = null;
-        }
-      }
-
+      let document = this._firstValid([
+        this._read(MAP_DOCUMENT_STORAGE_KEY),
+        this._read(MAP_DOCUMENT_BACKUP_KEY),
+      ]);
       if (!document) {
-        const migratedSeed = clone(this.seed);
-        const legacyPositions = this._read('mr_pois');
-        if (legacyPositions && !Array.isArray(legacyPositions)) {
-          for (const point of migratedSeed) {
-            const position = legacyPositions[point.id];
-            if (Array.isArray(position) && position.length >= 2) {
-              point.x = position[0];
-              point.y = position[1];
-            }
-          }
-        }
-        document = this._validateDocument({
-          schemaVersion: MAP_DOCUMENT_SCHEMA_VERSION,
-          updatedAt: new Date().toISOString(),
-          places: migratedSeed,
-        });
+        const legacy = this._read(MAP_DOCUMENT_LEGACY_KEY);
+        document = legacy && Array.isArray(legacy.places)
+          ? this._migrateLegacyDocument(legacy)
+          : this._validateDocument({
+              schemaVersion: MAP_DOCUMENT_SCHEMA_VERSION,
+              updatedAt: nextUpdatedAt(),
+              places: this.seed,
+            });
       }
-
-      this.places = clone(document.places);
-      this.undoStack = [];
-      this._writeCurrent();
+      this._apply(document, {emit: true, write: true});
       return this.places;
     }
 
@@ -137,6 +128,7 @@
         y: input && input.y,
         isVisible: true,
         isFeatured: false,
+        needsReview: false,
         events: [],
       });
       this._commit([...this.places, point]);
@@ -146,12 +138,8 @@
     updatePoint(id, patch) {
       const index = this._pointIndex(id);
       const allowed = new Set([
-        'name',
-        'cat',
-        'icon',
-        'venue',
-        'isVisible',
-        'isFeatured',
+        'name', 'cat', 'icon', 'venue', 'isVisible', 'isFeatured',
+        'recommendationId',
       ]);
       const next = clone(this.places);
       const changes = {};
@@ -167,9 +155,16 @@
       const index = this._pointIndex(id);
       const previous = this.places[index];
       const next = clone(this.places);
-      next[index] = this._validatePoint({...next[index], x, y});
-      this.undoStack.push({id: previous.id, x: previous.x, y: previous.y});
-      this._commit(next);
+      next[index] = this._validatePoint({
+        ...next[index], x, y, needsReview: false,
+      });
+      this.undoStack.push({
+        id: previous.id,
+        x: previous.x,
+        y: previous.y,
+        needsReview: previous.needsReview === true,
+      });
+      this._commit(next, {preserveUndo: true});
       return this.findPoint(id);
     }
 
@@ -182,8 +177,9 @@
         ...next[index],
         x: previous.x,
         y: previous.y,
+        needsReview: previous.needsReview,
       });
-      this._commit(next);
+      this._commit(next, {preserveUndo: true});
       return true;
     }
 
@@ -215,8 +211,7 @@
       }
       const next = clone(this.places);
       next[pointIndex].events[eventIndex] = this._validateEvent({
-        ...next[pointIndex].events[eventIndex],
-        ...changes,
+        ...next[pointIndex].events[eventIndex], ...changes,
       });
       this._commit(next);
       return clone(next[pointIndex].events[eventIndex]);
@@ -231,7 +226,7 @@
     exportObject() {
       return {
         schemaVersion: MAP_DOCUMENT_SCHEMA_VERSION,
-        updatedAt: new Date().toISOString(),
+        updatedAt: this.updatedAt || nextUpdatedAt(),
         places: clone(this.places),
       };
     }
@@ -248,11 +243,7 @@
         throw new Error('El JSON no tiene un formato válido');
       }
       const document = this._validateDocument(parsed, {requirePlaces: true});
-      const previous = this.storage.getItem(MAP_DOCUMENT_STORAGE_KEY);
-      if (previous) this.storage.setItem(MAP_DOCUMENT_BACKUP_KEY, previous);
-      this.places = clone(document.places);
-      this.undoStack = [];
-      this._writeCurrent();
+      this._replaceWithNewRevision(document.places);
       return this.places;
     }
 
@@ -260,10 +251,75 @@
       const backup = this._read(MAP_DOCUMENT_BACKUP_KEY);
       if (!backup) throw new Error('No existe un respaldo local');
       const document = this._validateDocument(backup, {requirePlaces: true});
-      this.places = clone(document.places);
-      this.undoStack = [];
-      this._writeCurrent();
+      this._replaceWithNewRevision(document.places);
       return this.places;
+    }
+
+    applyExternalDocument(value) {
+      let document;
+      try {
+        document = this._validateDocument(
+          typeof value === 'string' ? JSON.parse(value) : value,
+          {requirePlaces: true},
+        );
+      } catch (_) {
+        return false;
+      }
+      if (this.updatedAt && Date.parse(document.updatedAt) <= Date.parse(this.updatedAt)) {
+        return false;
+      }
+      this._backupCurrent();
+      this._apply(document, {emit: true, write: true});
+      return true;
+    }
+
+    _firstValid(candidates) {
+      for (const candidate of candidates) {
+        if (!candidate) continue;
+        try {
+          return this._validateDocument(candidate);
+        } catch (_) {
+          // A corrupt current document may fall back to its local backup.
+        }
+      }
+      return null;
+    }
+
+    _migrateLegacyDocument(legacyDocument) {
+      const legacyById = new Map(
+        this.legacySeed.map((point) => [String(point.id), point]),
+      );
+      const officialById = new Map(
+        this.seed.map((point) => [String(point.id), point]),
+      );
+      const migrated = [];
+      const seen = new Set();
+      for (const rawPoint of legacyDocument.places) {
+        if (!rawPoint || rawPoint.cat === 'trans') continue;
+        const id = String(rawPoint.id);
+        const legacySeed = legacyById.get(id) || null;
+        const officialSeed = officialById.get(id) || null;
+        const coordinates = this.migratePoint
+          ? this.migratePoint(rawPoint, legacySeed, officialSeed)
+          : officialSeed
+            ? {x: officialSeed.x, y: officialSeed.y, needsReview: false}
+            : {x: rawPoint.x, y: rawPoint.y, needsReview: true};
+        migrated.push(this._validatePoint({
+          ...(officialSeed ? clone(officialSeed) : {}),
+          ...clone(rawPoint),
+          ...coordinates,
+        }));
+        seen.add(id);
+      }
+      for (const officialPoint of this.seed) {
+        if (officialPoint.cat === 'trans' || seen.has(String(officialPoint.id))) continue;
+        migrated.push(this._validatePoint(officialPoint));
+      }
+      return this._validateDocument({
+        schemaVersion: MAP_DOCUMENT_SCHEMA_VERSION,
+        updatedAt: nextUpdatedAt(legacyDocument.updatedAt),
+        places: migrated,
+      });
     }
 
     _pointIndex(id) {
@@ -274,20 +330,48 @@
       return index;
     }
 
-    _commit(nextPlaces) {
+    _replaceWithNewRevision(nextPlaces, options) {
+      this._backupCurrent();
       const document = this._validateDocument({
         schemaVersion: MAP_DOCUMENT_SCHEMA_VERSION,
-        updatedAt: new Date().toISOString(),
+        updatedAt: nextUpdatedAt(this.updatedAt),
         places: nextPlaces,
       });
+      this._apply(document, {
+        emit: true,
+        write: true,
+        preserveUndo: options && options.preserveUndo,
+      });
+    }
+
+    _commit(nextPlaces, options) {
+      this._replaceWithNewRevision(nextPlaces, options);
+    }
+
+    _backupCurrent() {
       const previous = this.storage.getItem(MAP_DOCUMENT_STORAGE_KEY);
       if (previous) this.storage.setItem(MAP_DOCUMENT_BACKUP_KEY, previous);
+    }
+
+    _apply(document, options) {
       this.places = clone(document.places);
-      this._writeCurrent();
+      this.updatedAt = document.updatedAt;
+      if (!(options && options.preserveUndo)) this.undoStack = [];
+      if (options && options.write) this._writeCurrent();
+      if (options && options.emit) this._emitChange();
     }
 
     _writeCurrent() {
       this.storage.setItem(MAP_DOCUMENT_STORAGE_KEY, this.exportJson());
+    }
+
+    _emitChange() {
+      if (!this.onChange) return;
+      try {
+        this.onChange(this.exportObject());
+      } catch (_) {
+        // Bridge failures must not prevent local editing or offline storage.
+      }
     }
 
     _read(key) {
@@ -304,12 +388,13 @@
       if (!value || Number(value.schemaVersion) !== MAP_DOCUMENT_SCHEMA_VERSION) {
         throw new Error('Versión de documento no compatible');
       }
-      if (!Array.isArray(value.places)) {
-        throw new Error('La lista de lugares no es válida');
-      }
+      if (!Array.isArray(value.places)) throw new Error('La lista de lugares no es válida');
       if (options && options.requirePlaces && value.places.length === 0) {
         throw new Error('El documento debe contener al menos un lugar');
       }
+      const updatedAt = value.updatedAt == null || value.updatedAt === ''
+        ? nextUpdatedAt(this.updatedAt)
+        : new Date(value.updatedAt).toISOString();
       const places = value.places.map((point) => this._validatePoint(point));
       const ids = new Set();
       for (const point of places) {
@@ -317,11 +402,7 @@
         if (ids.has(id)) throw new Error(`El lugar ${id} está repetido`);
         ids.add(id);
       }
-      return {
-        schemaVersion: MAP_DOCUMENT_SCHEMA_VERSION,
-        updatedAt: value.updatedAt || new Date().toISOString(),
-        places,
-      };
+      return {schemaVersion: MAP_DOCUMENT_SCHEMA_VERSION, updatedAt, places};
     }
 
     _validatePoint(value) {
@@ -333,7 +414,7 @@
         throw new Error(`La categoría ${cat} no está permitida`);
       }
       const events = Array.isArray(value.events) ? value.events : [];
-      return {
+      const point = {
         ...clone(value),
         id: value.id,
         cat,
@@ -342,8 +423,13 @@
         y: finiteCoordinate(value.y, MAP_HEIGHT, 'La coordenada Y'),
         isVisible: value.isVisible !== false,
         isFeatured: value.isFeatured === true || Boolean(value.venue),
+        needsReview: value.needsReview === true,
         events: events.map((event) => this._validateEvent(event)),
       };
+      if (value.recommendationId != null) {
+        point.recommendationId = String(value.recommendationId).trim();
+      }
+      return point;
     }
 
     _validateEvent(value) {
@@ -367,5 +453,6 @@
     MAP_DOCUMENT_SCHEMA_VERSION,
     MAP_DOCUMENT_STORAGE_KEY,
     MAP_DOCUMENT_BACKUP_KEY,
+    MAP_DOCUMENT_LEGACY_KEY,
   });
 })(typeof globalThis !== 'undefined' ? globalThis : window);

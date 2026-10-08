@@ -23,15 +23,29 @@ class MapViewModel {
     this.height = height;
   }
 
-  minimumScale(viewportWidth, viewportHeight) {
+  containScale(viewportWidth, viewportHeight) {
+    return Math.min(
+      viewportWidth / this.width,
+      viewportHeight / this.height,
+    );
+  }
+
+  fillScale(viewportWidth, viewportHeight) {
     return Math.max(
       viewportWidth / this.width,
       viewportHeight / this.height,
     );
   }
 
-  fit(viewportWidth, viewportHeight) {
-    const scale = this.minimumScale(viewportWidth, viewportHeight);
+  minimumScale(viewportWidth, viewportHeight) {
+    return this.containScale(viewportWidth, viewportHeight);
+  }
+
+  fit(viewportWidth, viewportHeight, mode = 'contain') {
+    const scale =
+      mode === 'fill'
+        ? this.fillScale(viewportWidth, viewportHeight)
+        : this.containScale(viewportWidth, viewportHeight);
     const scaledWidth = this.width * scale;
     const scaledHeight = this.height * scale;
     return {
@@ -54,11 +68,14 @@ class MapViewModel {
     );
   }
 
-  clamp(offset, contentSize, viewportSize) {
+  clamp(offset, contentSize, viewportSize, margin = 0) {
     if (contentSize <= viewportSize) {
       return (viewportSize - contentSize) / 2;
     }
-    return Math.min(0, Math.max(viewportSize - contentSize, offset));
+    return Math.min(
+      margin,
+      Math.max(viewportSize - contentSize - margin, offset),
+    );
   }
 }
 
@@ -106,7 +123,96 @@ class LocationStatusModel {
   }
 }
 
+class MapProgrammingModel {
+  constructor(storage = null) {
+    this.days = [];
+    this.selectedIndex = 0;
+    this.storageKey = 'mr_fair_programming_v1';
+    this.storage = storage;
+    if (!this.storage) {
+      try {
+        this.storage = globalThis.localStorage || null;
+      } catch (_) {
+        this.storage = null;
+      }
+    }
+  }
+
+  setDays(days) {
+    const incoming = this.#cloneDays(days);
+    const stored = this.#readStoredDays();
+    this.days = stored || incoming;
+    this.selectedIndex = Math.min(
+      this.selectedIndex,
+      Math.max(0, this.days.length - 1),
+    );
+    return Boolean(stored);
+  }
+
+  selectDay(index) {
+    const parsed = Number(index);
+    if (!Number.isInteger(parsed) || parsed < 0 || parsed >= this.days.length) {
+      return false;
+    }
+    this.selectedIndex = parsed;
+    return true;
+  }
+
+  get selectedDay() {
+    return this.days[this.selectedIndex] || null;
+  }
+
+  scheduleForVenue(venue) {
+    const day = this.selectedDay;
+    if (!day || !['sol', 'luna', 'mega'].includes(venue)) return [];
+    const entries = day[venue];
+    return Array.isArray(entries)
+      ? JSON.parse(JSON.stringify(entries))
+      : [];
+  }
+
+  updateEntry(venue, dayIndex, entryIndex, patch) {
+    if (!['sol', 'luna', 'mega'].includes(venue)) return false;
+    const day = this.days[Number(dayIndex)];
+    const entries = day && day[venue];
+    const entry = Array.isArray(entries) ? entries[Number(entryIndex)] : null;
+    if (!entry) return false;
+    const title = String(patch?.title ?? entry.title).trim();
+    const time = String(patch?.time ?? entry.time).trim();
+    if (!title || !/^([01]\d|2[0-3]):[0-5]\d$/.test(time)) return false;
+    entries[Number(entryIndex)] = { time, title };
+    this.#persist();
+    return true;
+  }
+
+  exportDays() {
+    return this.#cloneDays(this.days);
+  }
+
+  #cloneDays(days) {
+    return Array.isArray(days) ? JSON.parse(JSON.stringify(days)) : [];
+  }
+
+  #readStoredDays() {
+    if (!this.storage) return null;
+    try {
+      const decoded = JSON.parse(this.storage.getItem(this.storageKey));
+      return Array.isArray(decoded) && decoded.length
+        ? this.#cloneDays(decoded)
+        : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  #persist() {
+    if (!this.storage) return;
+    this.storage.setItem(this.storageKey, JSON.stringify(this.days));
+  }
+}
+
 globalThis.MapFilterModel = MapFilterModel;
 globalThis.MapViewModel = MapViewModel;
 globalThis.MapMarkerIcons = MapMarkerIcons;
 globalThis.LocationStatusModel = LocationStatusModel;
+globalThis.MapProgrammingModel = MapProgrammingModel;

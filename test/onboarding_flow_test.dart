@@ -98,7 +98,9 @@ void main() {
 
     expect(find.text('¡Hola, Visitante!'), findsOneWidget);
     expect(find.text('Mapa'), findsOneWidget);
-    expect(find.text('Paquetes'), findsOneWidget);
+    expect(find.text('Paquetes'), findsNothing);
+    expect(find.text('Comida'), findsNothing);
+    expect(find.text('Programación'), findsOneWidget);
   });
 
   testWidgets('el cuestionario permite volver sin perder la respuesta', (
@@ -120,5 +122,39 @@ void main() {
       find.byKey(const Key('onboarding-option-Conciertos')),
     );
     expect(concerts.properties.selected, isTrue);
+  });
+
+  testWidgets('Runi conserva el perfil elegido y lo usa en su plan', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_testApp());
+    await tester.tap(find.byKey(const Key('google-access')));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('onboarding-option-Conciertos')));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('onboarding-next')));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(
+      find.byKey(const Key('onboarding-option-Primera vez')),
+    );
+    await tester.tap(find.byKey(const Key('onboarding-option-Primera vez')));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('onboarding-next')));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(
+      find.byKey(const Key('onboarding-option-Espectáculos')),
+    );
+    await tester.tap(find.byKey(const Key('onboarding-option-Espectáculos')));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('onboarding-finish')));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('runi-nav-button')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('PLAN BASADO EN'), findsOneWidget);
+    expect(find.textContaining('Conciertos'), findsWidgets);
+    expect(find.text('Paseo en Tren'), findsNothing);
   });
 }
